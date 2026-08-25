@@ -53,6 +53,30 @@ html, body {
 .hud-bl { bottom: 2.2vh; left: 2.2vw; color: var(--c-text-dim); }
 .hud-br { bottom: 2.2vh; right: 2.2vw; color: var(--c-text-dim); }
 
+/* HUD 는 pointer-events: none 이라 버튼만 되살린다. */
+.hud-btn {
+  position: absolute;
+  top: 2.2vh;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: auto;
+  background: transparent;
+  border: 1px solid var(--c-line);
+  border-radius: 0;
+  color: var(--c-text-dim);
+  font-family: var(--font-mono);
+  font-size: clamp(9px, 1.4vw, 13px);
+  letter-spacing: 0.12em;
+  padding: 0.5vh 2vw;
+  cursor: pointer;
+}
+.hud-btn:active,
+.hud-btn:focus-visible {
+  border-color: var(--c-accent-amber);
+  color: var(--c-accent-amber);
+  outline: none;
+}
+
 #boot {
   display: flex;
   flex-direction: column;

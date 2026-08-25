@@ -58,3 +58,4 @@ ui.cloud.conflict_cloud,충돌: 클라우드 진행을 불러왔습니다,CONFLI
 ui.cloud.outdated,클라이언트가 구버전입니다. 갱신 후 다시 시도하세요.,CLIENT OUT OF DATE. UPDATE AND RETRY.
 ui.cloud.error,오류,ERROR
 ui.cloud.close,닫기,CLOSE
+ui.cloud.open,저장,SAVE

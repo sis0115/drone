@@ -94,7 +94,9 @@ test('잘못된 코드는 오류를 내고 자격증명을 건드리지 않는�
 
 test('패널이 열리고 스타일 규칙을 지킨다', async ({ page }) => {
   await boot(page);
-  await page.evaluate(() => window.__debug.cloud.openPanel());
+
+  // 콘솔이 아니라 화면의 버튼으로 연다 — 폰에서 실제로 쓰는 경로.
+  await page.locator('.hud-btn').click();
 
   const panel = page.locator('#cloud-panel .panel');
   await expect(panel).toBeVisible();

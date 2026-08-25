@@ -69,6 +69,7 @@ window.addEventListener('resize', resize);
 resize();
 
 hud.setMode(state.flightMode);
+hud.onCloudClick(() => cloudPanel.open());
 
 const debug = installDebug({
   snapshot: () => ({ ...state.snapshot(), input: lastInput }),
