@@ -162,6 +162,27 @@ FOV 118° / 배럴 왜곡 0.26 (오버레이 좌표에 역변환 동일 적용 �
 - 시크릿·코드는 **sha256 으로만 저장**한다. 조회가 해시 기본키라 평문 비교가 없다
 - 동시 수정은 `rev` **낙관적 잠금**으로 잡는다. 충돌 시 진행도가 큰 쪽을 남기고
   밀려난 쪽은 로컬 백업 키에 보관한다 (조용히 버리지 않는다)
+### 배포 함정 — 전부 실제로 밟은 것들
+
+`api/` 함수가 배포에서만 `FUNCTION_INVOCATION_FAILED` 로 죽는 조합이 세 가지 있었다.
+**로컬에서는 전부 정상이었다.** 셋 다 부팅 단계 실패라 로그에 스택도 남지 않는다.
+
+1. **`package.json` 에 `"type": "module"` 필수.** tsconfig 가 `module: ESNext` 로 ESM 을 뱉는데
+   이게 없으면 Node 가 출력된 `.js` 를 CommonJS 로 읽고 문법 오류를 낸다.
+   → `tools/*.js` 는 CJS 라서 `tools/package.json` 에 `"type": "commonjs"` 를 두어 그 디렉터리만 되돌린다
+2. **`api/` 안의 상대 import 에 `.js` 확장자 필수.** `moduleResolution: bundler` 는 확장자 없는
+   import 를 그대로 두는데 Node ESM 은 해석하지 못한다. TS 가 `./db.js` → `db.ts` 를 매핑하므로
+   소스 파일명은 그대로 두면 된다
+3. **루트 `tsconfig.json` 에 `"noEmit": true` 를 두지 말 것.** Vercel 이 이 설정으로 `api/*.ts` 를
+   컴파일하는데 출력이 생성되지 않는다. 타입 체크는 CLI 플래그(`tsc --noEmit`)로 한다.
+   `api/tsconfig.json` 을 따로 두는 방법은 **통하지 않는다** — Vercel 은 루트 설정을 읽는다
+
+또한 함수 시그니처는 **Web Handler** 다 (`export function POST(request: Request): Response`).
+레거시 `(req, res)` 기본 export 는 부팅 단계에서 실패한다.
+
+진단 순서: `api/health.ts`(무의존)가 살아 있는지 먼저 본다. 그것도 죽으면 위 1·3번,
+health 는 살고 라우트만 죽으면 2번이다.
+
 - 서버리스 풀은 `max: 1` 이다. **트랜잭션 콜백 안에서 `db().query()` 를 부르면 자기 자신을 기다리며 멈춘다** —
   반드시 넘겨받은 client 로만 질의할 것 (실제로 이 버그를 밟았다)
 

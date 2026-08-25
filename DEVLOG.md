@@ -174,3 +174,48 @@ DB 도입에 대해 "05 문서가 v1.0까지 로컬 JSON으로 규정했고 서�
 - **실제 Neon 대상 검증은 아직 없다.** 로컬 Postgres 16 으로만 확인했다
 
 **다음**: T2 — 프로토타입 씬 생성부를 `src/world/` · `src/render/` 로 분해 이식.
+---
+
+## 2026-08-25 — 배포된 /api/* 가 전부 죽던 문제 해결
+
+**증상**: 로컬은 21/21 통과인데 배포에서는 모든 `/api/*` 가 `FUNCTION_INVOCATION_FAILED`.
+부팅 단계 실패라 스택이 남지 않고, Vercel 로그 접근 권한이 없어 추측이 길어졌다.
+
+**이분으로 원인 확정**
+의존성 0 / TypeScript 미개입인 `api/ping.mjs` 를 띄웠더니 **200**, 같은 내용의 `.ts` 는 **500**.
+→ 내 로직이 아니라 TS 컴파일·모듈 해석 문제로 확정. 여기서부터 빨라졌다.
+
+**실제 원인 3개 (중첩되어 있었다)**
+1. **`"type": "module"` 누락** — tsconfig 가 ESM 을 뱉는데 package.json 에 선언이 없어
+   Node 가 출력된 `.js` 를 CJS 로 읽고 문법 오류. `.mjs` 만 살아남은 이유가 이것
+   - `tools/*.js` 는 CJS 이므로 `tools/package.json` 에 `"type": "commonjs"` 로 그 디렉터리만 예외 처리.
+     문서의 `node tools/perf.js` 명령을 그대로 유지했다
+2. **상대 import 에 확장자 없음** — `moduleResolution: bundler` 출력이 `from './db'` 인데
+   Node ESM 은 해석 불가. `.js` 를 붙여 해결 (TS 가 `./db.js` → `db.ts` 매핑)
+   - health.ts 는 상대 import 가 없어서 1번만 고쳤을 때 혼자 살아났고, 이게 2번을 가리키는 단서가 됐다
+3. **루트 tsconfig 의 `"noEmit": true`** — Vercel 이 이 설정으로 api 를 컴파일하면 출력이 없다.
+   CLI 플래그로 옮겼다. `api/tsconfig.json` 을 따로 두는 우회는 **통하지 않았다**(Vercel 은 루트를 읽는다)
+
+추가로 함수 시그니처를 **Web Handler**(`export function POST(request: Request)`)로 전환했다.
+레거시 `(req, res)` 기본 export 는 이 런타임에서 부팅에 실패한다. `@vercel/node` 의존성도 제거됐다.
+
+**최종 배포 상태 (실측)**
+```
+GET  /api/health        200  {"ok":true,"node":"v22.23.1","pg":"ok","hasDatabaseUrl":false}
+POST /api/profile/*     503  {"error":"no_database", ...}   ← Neon 미연결. 의도된 응답
+POST /api/link/*        503  동일
+GET  /api/profile/pull  405  메서드 가드 정상
+```
+`pg` 드라이버가 함수 번들에 정상 포함됨을 확인했다.
+
+**남긴 것**
+- 02 문서 7-1장에 "배포 함정" 절 추가 — 셋 다 로컬에서 재현되지 않으므로 문서가 유일한 방어선이다
+- `tsconfig.json` 상단에 noEmit 재발 방지 경고 주석
+- `DATABASE_URL` 미설정 시 500 이 아니라 **503 `no_database`** 를 돌려준다.
+  "스토리지 미연결"과 "서버 깨짐"은 구분되어야 한다
+
+**교훈**: 로컬 dev 미들웨어가 배포와 같은 규약(Web Handler)을 타도록 맞춰 뒀는데도,
+**모듈 시스템 차이는 잡지 못했다.** vite 의 ssrLoadModule 이 확장자 없는 import 를 알아서 풀기 때문이다.
+로컬 통과가 배포 동작을 보장하지 못하는 구간이 남아 있다는 뜻 — 배포 후 `/api/health` 확인이 필요하다.
+
+**다음**: Neon 연결(사람) → 실기 이어하기 1회 → T2.

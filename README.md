@@ -180,7 +180,15 @@ npm run dev               # /api/* 가 dev 서버에 함께 마운트된다
 `DATABASE_URL` 이 없으면 `/api/*` 가 503 을 내고 클라우드 세이브 테스트는 건너뛴다.
 **단 CI 에서는 DB 가 없으면 테스트가 실패한다** — 조용히 건너뛰면 통과처럼 보이기 때문.
 
-### 6-1-4. 확인된 것 / 안 된 것
+### 6-1-4. 배포 상태 확인
+
+```bash
+curl https://drone-azure-rho.vercel.app/api/health
+```
+`hasDatabaseUrl` 이 false 면 아직 Storage 미연결이고, 이때 `/api/*` 는 **503 `no_database`** 를 낸다
+(500 이 나오면 그건 진짜 고장이다). 배포 함정 3종은 `docs/02_DEV_SPEC_web.md` 7-1장에 정리돼 있다.
+
+### 6-1-5. 확인된 것 / 안 된 것
 
 `npm run verify` 가 실제 Postgres 를 상대로 20종을 돌린다 — 서비스 단위 11종
 (낙관적 잠금, 1회용 코드, 만료, 시도 제한, 크기 상한) + 브라우저 E2E 4종
