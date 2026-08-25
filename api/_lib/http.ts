@@ -1,4 +1,4 @@
-/** 서비스 계층이 돌려주는 결과. 라우트는 이걸 그대로 응답으로 옮기기만 한다. */
+/** 서비스 계층이 돌려주는 결과. 라우트는 이걸 Response 로 옮기기만 한다. */
 export interface Result<T = unknown> {
   status: number;
   body: T;
@@ -21,10 +21,9 @@ export function fail(status: number, code: string, message: string): Result<ApiE
 }
 
 /** 프록시 뒤에서 클라이언트 IP 를 뽑는다. 시도 제한 키로만 쓴다. */
-export function clientIp(headers: Record<string, string | string[] | undefined>): string {
-  const forwarded = headers['x-forwarded-for'];
-  const raw = Array.isArray(forwarded) ? forwarded[0] : forwarded;
-  return (raw?.split(',')[0] ?? 'unknown').trim() || 'unknown';
+export function clientIp(headers: Headers): string {
+  const forwarded = headers.get('x-forwarded-for');
+  return (forwarded?.split(',')[0] ?? 'unknown').trim() || 'unknown';
 }
 
 export function isNonEmptyString(v: unknown): v is string {

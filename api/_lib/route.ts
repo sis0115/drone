@@ -1,34 +1,45 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
 import type { ApiResult } from './http';
 import { migrate } from './db';
 
 /**
- * 라우트 공통 껍데기. POST 만 받고, 본문을 파싱해 핸들러에 넘기고,
- * 서비스가 돌려준 {status, body} 를 그대로 내보낸다.
- * 로직은 전부 service.ts 에 있고 여기는 배선만 한다 — 그래야 테스트가 서비스를 직접 부른다.
+ * 라우트 공통 껍데기.
+ *
+ * Vercel 함수는 **Web Handler** 다 — `export function POST(request: Request): Response`.
+ * 레거시 `(req, res)` 기본 export 형태는 이 런타임에서 부팅 단계에 실패한다 (실제로 밟음).
+ * 로직은 전부 service.ts 에 있고 여기는 배선만 한다.
  */
-export function postRoute<T>(
-  handler: (body: Record<string, unknown>, req: VercelRequest) => Promise<ApiResult<T>>,
-) {
-  return async (req: VercelRequest, res: VercelResponse): Promise<void> => {
-    if (req.method !== 'POST') {
-      res.setHeader('Allow', 'POST');
-      res.status(405).json({ error: 'method_not_allowed', message: 'POST 만 허용합니다' });
-      return;
-    }
+export async function handlePost<T>(
+  request: Request,
+  handler: (body: Record<string, unknown>, request: Request) => Promise<ApiResult<T>>,
+): Promise<Response> {
+  // 세이브는 캐시되면 안 된다.
+  const headers = { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' };
 
-    // 세이브는 캐시되면 안 된다.
-    res.setHeader('Cache-Control', 'no-store');
+  if (request.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'method_not_allowed', message: 'POST 만 허용합니다' }), {
+      status: 405,
+      headers: { ...headers, allow: 'POST' },
+    });
+  }
 
-    try {
-      await migrate();
-      const body = (typeof req.body === 'string' ? JSON.parse(req.body) : req.body) ?? {};
-      const result = await handler(body as Record<string, unknown>, req);
-      res.status(result.status).json(result.body);
-    } catch (err) {
-      // 내부 오류 내용은 클라이언트에 흘리지 않는다.
-      console.error('[api]', err);
-      res.status(500).json({ error: 'internal', message: '서버 오류' });
+  try {
+    await migrate();
+    const raw = await request.text();
+    const body = (raw ? JSON.parse(raw) : {}) as Record<string, unknown>;
+    const result = await handler(body, request);
+    return new Response(JSON.stringify(result.body), { status: result.status, headers });
+  } catch (err) {
+    if (err instanceof SyntaxError) {
+      return new Response(JSON.stringify({ error: 'bad_json', message: '본문이 JSON 이 아닙니다' }), {
+        status: 400,
+        headers,
+      });
     }
-  };
+    // 내부 오류 내용은 클라이언트에 흘리지 않는다.
+    console.error('[api]', err);
+    return new Response(JSON.stringify({ error: 'internal', message: '서버 오류' }), {
+      status: 500,
+      headers,
+    });
+  }
 }
