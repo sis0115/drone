@@ -82,3 +82,77 @@ html, body {
   width: 0%;
   background: var(--c-text-primary);
 }
+
+/* 클라우드 세이브 패널 — 04 문서: 사각 테두리, 라운드 0, 그림자·그라데이션 없음 */
+#cloud-panel {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 15, 11, 0.92);
+  pointer-events: auto;
+}
+#cloud-panel[data-open='1'] { display: flex; }
+
+#cloud-panel .panel {
+  width: min(92vw, 460px);
+  border: 1px solid var(--c-line);
+  background: var(--c-bg-panel);
+  padding: 3vh 4vw;
+  display: flex;
+  flex-direction: column;
+  gap: 1.6vh;
+}
+
+#cloud-panel .panel-title {
+  color: var(--c-text-white);
+  letter-spacing: 0.12em;
+  font-size: clamp(13px, 2vw, 18px);
+}
+#cloud-panel .panel-state { color: var(--c-text-dim); font-size: clamp(10px, 1.5vw, 14px); }
+#cloud-panel .panel-warn { color: var(--c-accent-amber); font-size: clamp(9px, 1.3vw, 12px); }
+
+#cloud-panel .panel-status {
+  min-height: 2.4em;
+  white-space: pre-wrap;
+  color: var(--c-text-primary);
+  font-size: clamp(11px, 1.8vw, 16px);
+  letter-spacing: 0.08em;
+}
+
+#cloud-panel .panel-actions { display: flex; flex-direction: column; gap: 1.2vh; }
+#cloud-panel .panel-field { display: flex; flex-direction: column; gap: 0.6vh; }
+#cloud-panel .panel-field > span { color: var(--c-text-dim); font-size: clamp(9px, 1.3vw, 12px); }
+
+#cloud-panel input {
+  background: transparent;
+  border: 1px solid var(--c-line);
+  border-radius: 0;
+  color: var(--c-text-primary);
+  font-family: var(--font-mono);
+  font-size: clamp(13px, 2.2vw, 20px);
+  letter-spacing: 0.22em;
+  padding: 0.8vh 0.8vw;
+  text-transform: uppercase;
+}
+#cloud-panel input:focus { outline: none; border-color: var(--c-accent-amber); }
+
+/* 채우기 없음. 선택 시 테두리·텍스트가 앰버로. */
+#cloud-panel .btn {
+  background: transparent;
+  border: 1px solid var(--c-line);
+  border-radius: 0;
+  color: var(--c-text-primary);
+  font-family: var(--font-mono);
+  font-size: clamp(11px, 1.7vw, 15px);
+  letter-spacing: 0.1em;
+  padding: 1vh 1.2vw;
+  cursor: pointer;
+}
+#cloud-panel .btn:active,
+#cloud-panel .btn:focus-visible {
+  border-color: var(--c-accent-amber);
+  color: var(--c-accent-amber);
+  outline: none;
+}

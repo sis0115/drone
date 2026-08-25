@@ -19,6 +19,21 @@ export interface DebugApi {
   errors: string[];
   ready: boolean;
   setInput(fn: ((elapsed: number, dt: number) => Partial<InputFrame>) | null): void;
+  /** 클라우드 세이브 조작 — Playwright 가 사람과 같은 경로로 흐름을 태운다. */
+  cloud: CloudDebugApi;
+}
+
+export interface CloudDebugApi {
+  isEnabled(): boolean;
+  status(): string;
+  openPanel(): void;
+  closePanel(): void;
+  sync(): Promise<void>;
+  enable(): Promise<void>;
+  createLinkCode(): Promise<{ code: string; expiresAt: string }>;
+  claimLinkCode(code: string): Promise<void>;
+  reset(): void;
+  profile(): unknown;
 }
 
 declare global {
@@ -37,6 +52,7 @@ export interface DebugHost {
   frame(): number;
   missionId(): string | null;
   setInputSource(source: InputSource | null): void;
+  cloud: CloudDebugApi;
 }
 
 export function installDebug(host: DebugHost): DebugApi {
@@ -76,6 +92,7 @@ export function installDebug(host: DebugHost): DebugApi {
     setInput(fn) {
       host.setInputSource(fn ? new ScriptedInputSource(fn) : null);
     },
+    cloud: host.cloud,
   };
 
   window.__debug = api;
