@@ -1,5 +1,5 @@
 import { Pool, type PoolClient } from 'pg';
-import { SCHEMA_SQL } from './schema';
+import { SCHEMA_SQL } from './schema.js';
 
 let pool: Pool | null = null;
 

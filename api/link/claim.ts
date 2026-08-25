@@ -1,6 +1,6 @@
-import { handlePost } from '../_lib/route';
-import { claimLink } from '../_lib/service';
-import { clientIp, fail, isNonEmptyString } from '../_lib/http';
+import { handlePost } from '../_lib/route.js';
+import { claimLink } from '../_lib/service.js';
+import { clientIp, fail, isNonEmptyString } from '../_lib/http.js';
 
 export async function POST(request: Request): Promise<Response> {
   return handlePost(request, async (body, req) => {

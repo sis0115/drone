@@ -1,6 +1,6 @@
-import { handlePost } from '../_lib/route';
-import { createLink } from '../_lib/service';
-import { fail, isNonEmptyString } from '../_lib/http';
+import { handlePost } from '../_lib/route.js';
+import { createLink } from '../_lib/service.js';
+import { fail, isNonEmptyString } from '../_lib/http.js';
 
 export async function POST(request: Request): Promise<Response> {
   return handlePost(request, async (body) => {

@@ -1,5 +1,5 @@
-import type { ApiResult } from './http';
-import { migrate } from './db';
+import type { ApiResult } from './http.js';
+import { migrate } from './db.js';
 
 /**
  * 라우트 공통 껍데기.
@@ -20,6 +20,17 @@ export async function handlePost<T>(
       status: 405,
       headers: { ...headers, allow: 'POST' },
     });
+  }
+
+  // 스토리지가 아직 안 붙은 상태를 "서버가 깨짐"과 구분해 준다.
+  if (!process.env.DATABASE_URL) {
+    return new Response(
+      JSON.stringify({
+        error: 'no_database',
+        message: 'DATABASE_URL 미설정 — Vercel Storage(Neon) 를 프로젝트에 연결하세요',
+      }),
+      { status: 503, headers },
+    );
   }
 
   try {

@@ -1,6 +1,6 @@
-import { db, withTransaction } from './db';
-import { newLinkCode, newSecret, normalizeLinkCode, sha256 } from './crypto';
-import { fail, ok, type ApiResult } from './http';
+import { db, withTransaction } from './db.js';
+import { newLinkCode, newSecret, normalizeLinkCode, sha256 } from './crypto.js';
+import { fail, ok, type ApiResult } from './http.js';
 
 /** 이어하기 코드 유효 시간. 길수록 무차별 대입 여유가 생기므로 짧게 잡는다. */
 const LINK_TTL_MIN = 10;

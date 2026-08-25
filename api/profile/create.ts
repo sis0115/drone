@@ -1,6 +1,6 @@
-import { handlePost } from '../_lib/route';
-import { createProfile } from '../_lib/service';
-import { fail } from '../_lib/http';
+import { handlePost } from '../_lib/route.js';
+import { createProfile } from '../_lib/service.js';
+import { fail } from '../_lib/http.js';
 
 export async function POST(request: Request): Promise<Response> {
   return handlePost(request, async (body) => {
