@@ -91,3 +91,34 @@
 - GitHub 리포 Settings → 기본 브랜치가 `main` 인지 확인
 
 **다음**: T2 — 프로토타입 씬 생성부를 `src/world/` · `src/render/` 로 분해 이식.
+---
+
+## 2026-08-25 — 배포 연결 완료 · 파이프라인 전 구간 검증
+
+**연결됨**
+- 프로덕션: https://drone-azure-rho.vercel.app
+- GitHub 기본 브랜치를 `main` 으로 변경 (import 시점에는 `claude/*` 로 잡혀 있었다)
+
+**실제 배포본으로 확인한 것**
+- `GET /` → HTTP 200, 빌드된 `index.html` 정상 서빙
+- 번들에 빌드 스탬프가 박혀 있음 (`claude/project-setup-jpz9ue` / `6f31feb`)
+  → **Vercel 이 `VERCEL_GIT_COMMIT_SHA`/`_REF` 를 제대로 주고 `define` 주입이 프로덕션 빌드에서 동작한다**
+- `/assets/*` 응답에 `cache-control: public, max-age=31536000, immutable` + `x-content-type-options: nosniff`
+  → `vercel.json` 의 headers 규칙이 실제로 적용됨
+- GitHub Actions CI: `main`·`develop` 양쪽 6f31feb 에서 **success** (run #3, #4).
+  #1·#2 는 concurrency 그룹이 후속 push 로 취소한 것 — 정상 동작
+
+**남은 부정합 (이 커밋으로 해소)**
+- import 시점의 프로덕션 배포가 `claude/project-setup-jpz9ue` 소스로 잡혀 있었다.
+  기본 브랜치가 `main` 이 된 뒤 `main` 에 push 가 없어 갱신되지 않은 상태.
+  이 커밋을 `main` 에 올리면 `main` 기준 프로덕션 배포로 교체된다
+- `vercel.json` 의 `claude/*` 프리뷰 차단은 import 시 생성된 배포에는 적용되지 않았다 (그 시점엔 설정 이전).
+  이후 push 부터 적용
+
+**알아 둘 것**
+- 이 컨테이너에서는 헤드리스 크로미움이 에이전트 프록시를 통과하지 못해(`ERR_CONNECTION_RESET`)
+  **배포된 URL 을 브라우저로 직접 열어 검증할 수 없다.** 로컬 preview 서버 대상 Playwright(5/5) +
+  배포 번들 curl 검증으로 대신한다. 실기 확인은 여전히 사람이 폰으로 해야 한다
+- 리포지토리가 **public** 이다. 기획 문서 전량이 공개 상태
+
+**다음**: T2 — 프로토타입 씬 생성부를 `src/world/` · `src/render/` 로 분해 이식.

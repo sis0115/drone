@@ -110,21 +110,16 @@ git commit -m "T2: prototype module port"
 git push origin develop # → Vercel 프리뷰 URL 자동 생성 → 폰에서 확인
 ```
 
-### 6.2 Vercel 연결 (최초 1회, 계정 로그인 필요)
+### 6.2 배포 (연결 완료)
 
-> ⚠️ **0단계를 먼저 하지 않으면 Vercel이 엉뚱한 브랜치를 프로덕션으로 잡는다.**
+| | |
+|---|---|
+| 프로덕션 | https://drone-azure-rho.vercel.app (`main`) |
+| 프리뷰 | `develop` push마다 URL 자동 생성 |
+| 기본 브랜치 | `main` |
 
-0. **GitHub 기본 브랜치를 `main` 으로 변경** —
-   [Settings → General → Default branch](https://github.com/sis0115/drone/settings)
-   빈 리포에 첫 push된 브랜치가 자동으로 기본값이 되어, 현재 `claude/project-setup-jpz9ue` 로 잡혀 있다.
-   바꾼 뒤 `claude/*` 작업 브랜치는 삭제해도 된다 (`main`/`develop` 에 같은 내용이 들어 있다)
-1. [vercel.com/new](https://vercel.com/new) → **Import Git Repository** → `sis0115/drone` 선택
-2. 설정은 **건드리지 않는다.** `vercel.json` 이 이미 다 지정한다
-   (Framework `vite` / Build `npm run build` / Output `dist` / Node 22는 `engines` 로 결정)
-3. **Deploy** → 프로덕션 URL 발급
-4. Settings → Git → Production Branch 가 `main` 인지 확인
-
-연결 후에는 `develop` 에 push할 때마다 프리뷰 URL이 자동 생성된다. 환경변수는 현재 **하나도 필요 없다**.
+설정은 전부 `vercel.json` 에 있다 (Framework `vite` / Build `npm run build` / Output `dist`,
+Node 22는 `package.json` 의 `engines`). **환경변수는 하나도 쓰지 않는다.**
 
 ### 6.3 배포 확인
 
@@ -162,6 +157,5 @@ HUD 우하단에 `브랜치 커밋해시` 가 찍힌다 (예: `develop a1b2c3d`)
 
 ## 7. 우선 확인이 필요한 것
 
-- **Vercel 프로젝트 연결** — 리포지토리를 Vercel에 붙이면 `vercel.json` 그대로 자동 배포된다 (framework: vite / build: `npm run build` / output: `dist`). 현재 상태에서 배포하면 검은 화면 + HUD 코너 텍스트가 뜨는 것이 정상.
 - **폰 실기 fps** (프로토타입을 폰에서 열어 HUD 우상단 확인). 45 미만이면 풀 인스턴스 수 → 그림자 해상도 → 덤불 수 순으로 조정
 - **화면 감성 파라미터 확정** — 프로토타입 튜닝 패널에서 프리셋 A/B/C 중 선택 후 미세조정 → JSON 복사 → `src/data/postfx.ts`에 고정
