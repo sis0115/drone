@@ -1,0 +1,4 @@
+{
+  "//": "tools/*.js 는 CommonJS(require)다. 루트가 \"type\": \"module\" 이므로 여기서만 되돌린다. 이렇게 해야 문서의 `node tools/perf.js` 가 그대로 동작한다.",
+  "type": "commonjs"
+}
