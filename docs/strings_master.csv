@@ -1,0 +1,44 @@
+key,ko,en
+ui.title.tap,▮ 접속하려면 탭,▮ TAP TO CONNECT
+ui.home.title,작전실,OPS ROOM
+ui.home.campaign,캠페인,CAMPAIGN
+ui.home.dailyops,작전 요청,FIELD REQUESTS
+ui.home.hangar,격납고,HANGAR
+ui.home.radiolog,무전 로그,RADIO LOG
+ui.home.settings,설정,SETTINGS
+ui.common.sortie,출격,SORTIE
+ui.common.resortie,재출격,RE-SORTIE
+ui.common.approve_supply,보급 승인 — {0} SP,APPROVE SUPPLY — {0} SP
+ui.common.signal_lost,신호 두절,SIGNAL LOST
+ui.common.confirm,확인,CONFIRM
+ui.common.cancel,취소,CANCEL
+ui.common.trust_tier,신뢰 등급,TRUST TIER
+ui.quota.weekly,주간 쿼터: 확인 격파 {0}/{1},WEEKLY QUOTA: CONFIRMED KILLS {0}/{1}
+ui.debrief.title,임무 보고,MISSION REPORT
+ui.debrief.confirmed,확인 ✓,CONFIRMED ✓
+ui.debrief.unconfirmed,미확인 — 보상 50%,UNCONFIRMED — 50% REWARD
+ui.debrief.frame_lost,기체 회수 실패,AIRFRAME NOT RECOVERED
+ui.osd.link_establishing,링크 연결 중…,LINK ESTABLISHING…
+story.prologue.minister.001,[전군 공지 — 국방혁신부] 오늘부로 보급 체계를 바꿉니다. 연공서열도 서류도 아닙니다. 격파를 증명하면 장비가 갑니다. 여러분의 화면이 곧 보급창구입니다. — 장관 소린,[ALL-FORCES NOTICE — MINISTRY OF DEFENSE INNOVATION] As of today the supply system changes. Not seniority. Not paperwork. Prove your kills and the gear will come. Your screen is your supply depot. — Minister Sorin
+story.prologue.vadym.001,장관이라는 게 나보다 어려. …그래도 저 말은 맞다. 여기선 증명한 놈만 산다. 가자 애송이.,The minister is younger than me. ...Still he's right. Out here only the proven survive. Move it rookie.
+story.prologue.vadym.002,스틱은 부드럽게. 기체가 네 손을 믿게 만들어.,Easy on the sticks. Make the airframe trust your hands.
+story.prologue.vadym.003,링 코스 세 바퀴. 떨어뜨리면 네 월급에서 깐다. 농담이다. …반쯤은.,Three laps through the rings. Crash it and it's coming out of your pay. Joking. ...Half joking.
+story.ch1.brief.title,강철 사냥,STEEL HUNT
+story.ch1.brief.situation,연방군 보급 트럭들이 K-7 도로로 남하 중이다. 전선의 놈들 입에 들어갈 물자다.,Federation supply trucks are moving south on route K-7. That cargo feeds their front line.
+story.ch1.brief.objective,트럭 2대 격파. 종대를 세워라.,Destroy 2 trucks. Stop the column.
+story.ch1.brief.tip,놈들 뒤를 잡아라. 정면은 기관총이 본다.,Come in from behind. The front is watched by machine guns.
+story.ch1.brief.flavor,배터리 아끼지 마라. 아낀 배터리로 관 짜는 꼴 본다.,Don't ration the battery. I've seen saved batteries turn into coffins.
+story.ch1.radio.first_contact,보인다. 침착해라. 표적은 도망 안 간다. 네가 흔들릴 뿐이지.,There it is. Stay calm. The target won't run. Only your hands will.
+story.ch1.radio.first_kill,…명중. 첫 격파다. 숨 쉬어라 루키. 아직 한 대 남았다.,...Hit. That's your first kill. Breathe rookie. One more to go.
+story.ch1.radio.confirm_teach,끝이 아니다. 고스트가 사진을 찍어야 실적이 된다. 확인 없는 격파는 소문일 뿐이야.,Not done yet. It only counts when Ghost gets the photo. An unconfirmed kill is just a rumor.
+story.ch1.ghost.confirm,확인했다. 잘 가라 고철.,Confirmed. Rest easy scrap.
+story.ch1.debrief.vadym,손이 떨리는 건 정상이다. 안 떨리기 시작하면 그때 걱정해라.,Shaking hands are normal. Start worrying the day they don't.
+story.ch1.minister.quota_intro,[국방혁신부] 첫 실적 확인. 시스템은 약속을 지킵니다. 격납고를 확인하십시오. — 소린,[MODI] First results confirmed. The system keeps its word. Check your hangar. — Sorin
+radio.event.fratricide_warning,전 채널 주의 — B중대 구역에 아군 정찰기 활동 중. 식별 확인 후 격발.,All channels — friendly recon active in Company B sector. Verify before you fire.
+radio.event.interceptor_warning,레이더 접촉 — 6시 방향 적 요격기 추정. 고도 낮춰라.,Radar contact — probable hostile interceptor your six. Get low.
+radio.event.ammo_truck_bonus,적재물 유폭 확인. 탄약 수송이었다. 보너스 SP 승인.,Secondary detonation confirmed. That was an ammo run. Bonus SP approved.
+radio.event.jamming_surge,K-구역 전자전 활성 — 신호 품질 저하 예상. 광섬유 기체 권장.,EW active in sector K — expect signal degradation. Fiber-optic airframe advised.
+item.frame.sparrow7.name,스패로우-7,SPARROW-7
+item.frame.hornet10.name,호넷-10,HORNET-10
+item.cam.thermal.name,열화상 "레드아이",THERMAL "REDEYE"
+item.pwr.steadywing.name,자이로 안정화 "스테디윙",GYRO STABILIZER "STEADYWING"
