@@ -1,6 +1,9 @@
 // 브라우저 없이 씬 생성 코드를 실제 THREE r128로 실행해 API 에러를 잡는다
 const fs=require('fs');
 const THREE=require('three');
+const path=require('path');
+// 프로토타입 경로는 리포지토리 기준으로 해석한다 (핸드오프 당시의 절대경로 대체).
+const PROTOTYPE=process.env.SLFPV_PROTOTYPE||path.join(__dirname,'..','prototype','signal_lost_fpv.html');
 
 // --- 최소 DOM 스텁 ---
 function fakeCtx(){
@@ -32,7 +35,7 @@ global.performance={now:()=>0};
 global.THREE=THREE;
 
 // --- 데모에서 씬 생성 부분만 추출 ---
-const html=fs.readFileSync('/mnt/user-data/outputs/signal_lost_fpv.html','utf8');
+const html=fs.readFileSync(PROTOTYPE,'utf8');
 const m=html.match(/<script>\n\(function\(\)\{([\s\S]*?)\n\}\)\(\);\n<\/script>/);
 let code=m[1];
 

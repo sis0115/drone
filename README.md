@@ -20,8 +20,9 @@
 
 - 기획 문서 7종 완성 (`docs/`)
 - **동작하는 프로토타입 v0.7 존재** (`prototype/signal_lost_fpv.html`) — 단일 HTML, 외부 에셋 0
-- **헤드리스 검증 도구 존재** (`tools/`) — 브라우저 없이 Three.js 씬 검증
-- 코드베이스 없음 → **T1부터 시작**
+- **헤드리스 검증 도구 동작** (`tools/`) — 브라우저 없이 Three.js 씬 검증
+- **T1 완료** — Vite + TypeScript 스캐폴딩, 480×270 3버퍼 렌더 파이프 골격, `window.__debug` 훅, Playwright 4종 통과
+- 다음: **T2 (프로토타입 모듈 분해 이식)**
 
 ### 검증 완료된 수치
 | 항목 | 실측 |
@@ -56,20 +57,38 @@
 4. **UI 금지 목록 준수** (04 문서 6장): 라운드 버튼, 그라데이션, 그림자, 코인 아이콘, "축하합니다!" 류. 판정 기준 — *"이게 야전 단말기 화면에 있을 법한가?"*
 5. **수익화 원칙**: 유료는 시간만 판다. 성능 P2W·확률형 상자·FOMO 타이머 금지.
 6. **하드코딩 금지**: 문자열은 i18n, 튜닝 값은 `src/data/`.
-7. **매 태스크 종료 시**: 빌드 → `node tools/perf.js` → Playwright → 스크린샷 확인 → 커밋 → `DEVLOG.md` 갱신.
+7. **매 태스크 종료 시**: `npm run verify` → 스크린샷 확인 → 커밋 → `DEVLOG.md` 갱신.
 
-## 5. 지금 할 일
+## 5. 개발 시작
 
-```
-T1: Vite + TypeScript 스캐폴딩
-  - docs/02_DEV_SPEC_web.md 2장 폴더 구조 생성
-  - tools/ 하네스를 프로젝트에 이식 (npm script로 등록)
-  - Playwright 하네스 + window.__debug 훅 구축
-  - Vercel 배포 연결
-  완료 조건: 빈 화면 배포 + playwright 스크린샷 1장 + node tools/perf.js 동작
+```bash
+npm install
+npm run dev        # http://localhost:5173 (host 노출 — 폰에서 같은 망으로 접속 가능)
 ```
 
-이후 T2(프로토타입 모듈 분해) → T3(비행 2종 + 물리 테스트) 순.
+| 명령 | 하는 일 |
+|---|---|
+| `npm run dev` | Vite 개발 서버 |
+| `npm run build` | 타입 체크 + 프로덕션 빌드 (`dist/`) |
+| `npm run typecheck` | `tsc --noEmit` |
+| `npm run harness` | 헤드리스 씬 생성 검증 (`tools/harness.js`) |
+| `npm run perf` | 드로우콜/삼각형 실측 — 예산(<120) 초과 시 종료 코드 1 |
+| `npm test` | Playwright (빌드 → preview → 검증 → 스크린샷) |
+| `npm run verify` | 위 4종 일괄 — **커밋 전 필수** |
+
+스크린샷은 `tests/__screenshots__/` 에 남는다.
+
+## 5-1. 지금 할 일
+
+```
+T2: 프로토타입 모듈 분해 이식 (Renderer / PostFX / Terrain / Instancing)
+  - prototype/signal_lost_fpv.html 의 씬 생성부를 src/world/, src/render/ 로 분해
+  - 합성 셰이더(현재 패스스루)에 후처리 전 효과 이식 — 3버퍼 구조 유지
+  - P 객체 하드코딩 → src/data/postfx.ts
+  완료 조건: 프로토타입과 동일 화면, 드로우콜 <120 유지
+```
+
+이후 T3(비행 2종 + 물리 테스트) → T4(입력) 순. 상세는 `docs/02_DEV_SPEC_web.md` 6장.
 
 ## 6. 워크플로우
 
@@ -80,5 +99,6 @@ T1: Vite + TypeScript 스캐폴딩
 
 ## 7. 우선 확인이 필요한 것
 
+- **Vercel 프로젝트 연결** — 리포지토리를 Vercel에 붙이면 `vercel.json` 그대로 자동 배포된다 (framework: vite / build: `npm run build` / output: `dist`). 현재 상태에서 배포하면 검은 화면 + HUD 코너 텍스트가 뜨는 것이 정상.
 - **폰 실기 fps** (프로토타입을 폰에서 열어 HUD 우상단 확인). 45 미만이면 풀 인스턴스 수 → 그림자 해상도 → 덤불 수 순으로 조정
 - **화면 감성 파라미터 확정** — 프로토타입 튜닝 패널에서 프리셋 A/B/C 중 선택 후 미세조정 → JSON 복사 → `src/data/postfx.ts`에 고정

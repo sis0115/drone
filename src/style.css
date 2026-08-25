@@ -1,0 +1,84 @@
+/* 04 문서 1.2 컬러 토큰 8색. 라운드 모서리·그림자·그라데이션 금지. */
+:root {
+  --c-bg-base: #0a0f0b;
+  --c-bg-panel: #111a13;
+  --c-line: #2e4a34;
+  --c-text-primary: #8fffab;
+  --c-text-dim: #4e7a5c;
+  --c-accent-amber: #ffb347;
+  --c-accent-red: #ff4d4d;
+  --c-text-white: #d8e4da;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--c-bg-base);
+  color: var(--c-text-primary);
+  font-family: var(--font-mono);
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#app { position: fixed; inset: 0; }
+
+/* 480×270 렌더 결과를 화면 크기로 업스케일한다. 보간 없이 픽셀을 살린다. */
+#view {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  image-rendering: pixelated;
+  background: #000;
+}
+
+#hud, #boot { position: absolute; inset: 0; pointer-events: none; }
+
+.hud-corner {
+  position: absolute;
+  font-size: clamp(10px, 1.6vw, 16px);
+  letter-spacing: 0.05em;
+  color: var(--c-text-primary);
+  text-shadow: none;
+}
+.hud-corner[data-warn='1'] { color: var(--c-accent-red); }
+.hud-tl { top: 2.2vh; left: 2.2vw; }
+.hud-tr { top: 2.2vh; right: 2.2vw; }
+.hud-bl { bottom: 2.2vh; left: 2.2vw; color: var(--c-text-dim); }
+.hud-br { bottom: 2.2vh; right: 2.2vw; color: var(--c-text-dim); }
+
+#boot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.2vh;
+  background: var(--c-bg-base);
+  transition: opacity 0.15s linear;
+}
+#boot[data-hidden='1'] { opacity: 0; }
+
+.boot-line {
+  font-size: clamp(12px, 2vw, 20px);
+  letter-spacing: 0.12em;
+  color: var(--c-text-white);
+}
+
+.boot-gauge {
+  width: min(40vw, 320px);
+  height: 6px;
+  border: 1px solid var(--c-line);
+  border-radius: 0;
+}
+.boot-gauge > span {
+  display: block;
+  height: 100%;
+  width: 0%;
+  background: var(--c-text-primary);
+}
