@@ -112,6 +112,12 @@ git push origin develop # → Vercel 프리뷰 URL 자동 생성 → 폰에서 �
 
 ### 6.2 Vercel 연결 (최초 1회, 계정 로그인 필요)
 
+> ⚠️ **0단계를 먼저 하지 않으면 Vercel이 엉뚱한 브랜치를 프로덕션으로 잡는다.**
+
+0. **GitHub 기본 브랜치를 `main` 으로 변경** —
+   [Settings → General → Default branch](https://github.com/sis0115/drone/settings)
+   빈 리포에 첫 push된 브랜치가 자동으로 기본값이 되어, 현재 `claude/project-setup-jpz9ue` 로 잡혀 있다.
+   바꾼 뒤 `claude/*` 작업 브랜치는 삭제해도 된다 (`main`/`develop` 에 같은 내용이 들어 있다)
 1. [vercel.com/new](https://vercel.com/new) → **Import Git Repository** → `sis0115/drone` 선택
 2. 설정은 **건드리지 않는다.** `vercel.json` 이 이미 다 지정한다
    (Framework `vite` / Build `npm run build` / Output `dist` / Node 22는 `engines` 로 결정)
