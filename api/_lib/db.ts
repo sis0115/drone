@@ -1,6 +1,5 @@
 import { Pool, type PoolClient } from 'pg';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { SCHEMA_SQL } from './schema';
 
 let pool: Pool | null = null;
 
@@ -56,10 +55,12 @@ export async function closeDb(): Promise<void> {
 
 let migrated = false;
 
-/** 스키마를 적용한다. 전부 `if not exists` 라 여러 번 돌려도 안전하다. */
+/**
+ * 스키마를 적용한다. 전부 `if not exists` 라 여러 번 돌려도 안전하다.
+ * SQL 을 파일이 아니라 코드로 들고 있는 이유는 schema.ts 주석 참조.
+ */
 export async function migrate(force = false): Promise<void> {
   if (migrated && !force) return;
-  const sql = readFileSync(join(process.cwd(), 'db', '001_init.sql'), 'utf8');
-  await db().query(sql);
+  await db().query(SCHEMA_SQL);
   migrated = true;
 }
