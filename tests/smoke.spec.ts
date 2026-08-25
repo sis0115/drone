@@ -48,6 +48,19 @@ test('__debug 훅 규격 — 좌표·속도·fps·렌더 정보 노출', async (
   expect(snap.render.calls).toBeLessThan(BUDGET.drawCalls);
 });
 
+test('빌드 스탬프가 화면과 __debug 양쪽에 찍힌다', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForFunction(() => window.__debug?.ready === true, null, { timeout: 10_000 });
+
+  const build = await page.evaluate(() => window.__debug.build);
+  // define 주입이 실패하면 문자열이 통째로 비거나 'dev' 로 떨어진다.
+  expect(build.id).toMatch(/^[0-9a-f]{7}$|^dev$/);
+  expect(build.branch).not.toBe('');
+
+  // 폰에서 눈으로 확인하는 경로도 같이 막아 둔다.
+  await expect(page.locator('.hud-br')).toContainText(build.id);
+});
+
 test('스크립트 입력이 사람 입력과 같은 자리에 꽂힌다', async ({ page }) => {
   await page.goto('/');
   await page.waitForFunction(() => window.__debug?.ready === true, null, { timeout: 10_000 });

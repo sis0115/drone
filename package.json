@@ -3,6 +3,9 @@
   "private": true,
   "version": "0.1.0",
   "description": "저화질 FPV 드론 전쟁 시뮬레이터 — 모바일 웹 우선",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",

@@ -58,3 +58,36 @@
 - 헤드리스 컨테이너는 SwiftShader 소프트 렌더라 fps 41이 찍힌다 — 실기 fps와 무관. **폰 실측은 여전히 미해결**
 
 **다음**: T2 — 프로토타입 씬 생성부를 `src/world/` · `src/render/` 로 분해 이식. 드로우콜 <120 유지가 완료 조건.
+---
+
+## 2026-08-25 — 배포 파이프라인 + 브랜치 전략
+
+**결정: 브랜치**
+- `main`(프로덕션) / `develop`(개발·프리뷰) / `claude/*`(에이전트 작업, 배포 제외)
+- 빈 리포였으므로 T1 커밋에서 `main`·`develop` 을 함께 끊었다. 이후 개발은 `develop` 에서 한다
+- 마일스톤 단위로 `develop` → `main` 병합 (v0.1 = T1~T6)
+
+**결정: DB 미도입**
+05 문서 1장이 동적 데이터를 `PlayerProfile` 하나 / v1.0까지 로컬 JSON으로 못 박고 있다.
+서버·계정·랭킹이 설계에 없고 전량 싱글플레이라 서버 권위가 필요 없다. **지금은 붙이지 않는다.**
+도입 트리거는 (1) 클라우드 세이브 (2) 랭킹·쿼터 서버 검증 (3) 계정/결제 영수증.
+저장이 `Save.ts` 한 파일에 격리돼 있어 그때 백엔드만 갈아끼우면 되므로 선제 구조 변경도 하지 않는다.
+- 알려진 한계: `fleetStock.restockQueue` 재보급 타이머가 기기 시계를 믿는다. 싱글플레이라 현재는 무해하지만, 랭킹이 붙는 순간 서버 시간이 필요해진다
+
+**한 일**
+- `vercel.json`: `git.deploymentEnabled` 로 `claude/*` 프리뷰 차단(배포 한도 절약), `/assets/*` 는 immutable 캐시(해시 파일명), `index.html` 은 캐시 안 함
+- `package.json` 에 `engines.node >=22` — Vercel 이 이걸로 런타임을 고른다
+- **빌드 스탬프 주입**: `vite.config.ts` 의 `define` 으로 `__BUILD_ID__`/`__BUILD_BRANCH__` 를 박아 HUD 우하단에 `develop a1b2c3d` 형태로 표시.
+  Vercel 은 `VERCEL_GIT_COMMIT_SHA`/`_REF`, 로컬은 `git rev-parse`. `__debug.build` 로도 노출.
+  폰에서 프리뷰를 열었을 때 "이게 방금 push한 커밋인가"를 확인할 방법이 없으면 배포하며 개발하는 루프가 성립하지 않는다
+- `.github/workflows/ci.yml`: `typecheck → build → harness → perf → playwright`.
+  **Vercel 은 빌드만 보므로 드로우콜 예산 초과와 Playwright 실패는 여기서만 막힌다.** 스크린샷은 아티팩트로 업로드
+
+**검증**
+- `npm run verify` 통과. Playwright **5/5** (빌드 스탬프 테스트 1건 추가), 드로우콜 116
+
+**남은 수동 작업 (계정 로그인 필요 — 에이전트가 대신 못 함)**
+- vercel.com/new 에서 `sis0115/drone` import → Deploy. 설정 변경 불필요, 환경변수 0개
+- GitHub 리포 Settings → 기본 브랜치가 `main` 인지 확인
+
+**다음**: T2 — 프로토타입 씬 생성부를 `src/world/` · `src/render/` 로 분해 이식.

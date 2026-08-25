@@ -12,7 +12,7 @@ export class Hud {
       <div class="hud-corner hud-tl" data-role="status">--</div>
       <div class="hud-corner hud-tr" data-role="fps">-- FPS</div>
       <div class="hud-corner hud-bl" data-role="mode">ARCADE</div>
-      <div class="hud-corner hud-br">T1 SCAFFOLD</div>
+      <div class="hud-corner hud-br">${__BUILD_BRANCH__} ${__BUILD_ID__}</div>
     `;
     this.fpsEl = this.root.querySelector('[data-role="fps"]')!;
     this.statusEl = this.root.querySelector('[data-role="status"]')!;

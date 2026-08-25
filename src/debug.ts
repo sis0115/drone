@@ -14,6 +14,8 @@ export interface DebugApi {
   frame: number;
   mission: string | null;
   render: { calls: number; triangles: number };
+  /** 배포 확인용 — 지금 돌고 있는 화면이 어느 커밋인지. */
+  build: { id: string; branch: string };
   errors: string[];
   ready: boolean;
   setInput(fn: ((elapsed: number, dt: number) => Partial<InputFrame>) | null): void;
@@ -68,6 +70,7 @@ export function installDebug(host: DebugHost): DebugApi {
     get render() {
       return host.renderInfo();
     },
+    build: { id: __BUILD_ID__, branch: __BUILD_BRANCH__ },
     errors,
     ready: false,
     setInput(fn) {
