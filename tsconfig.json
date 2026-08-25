@@ -1,4 +1,9 @@
 {
+  // ⚠️ "noEmit" 을 이 파일에 넣지 말 것.
+  // Vercel 이 api/*.ts 를 이 설정으로 컴파일하는데, noEmit 이 켜져 있으면
+  // 함수 출력이 생성되지 않아 배포된 /api/* 가 전부
+  // FUNCTION_INVOCATION_FAILED 로 죽는다 (실제로 밟았다).
+  // 타입 체크는 CLI 플래그로 한다: `tsc --noEmit`.
   "compilerOptions": {
     "target": "ES2022",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
@@ -15,9 +20,8 @@
     "verbatimModuleSyntax": true,
     "resolveJsonModule": true,
     "skipLibCheck": true,
-    "noEmit": true,
     "baseUrl": ".",
     "paths": { "@/*": ["src/*"] }
   },
-  "include": ["src", "tests", "vite.config.ts", "playwright.config.ts"]
+  "include": ["src", "api", "tests", "vite.config.ts", "playwright.config.ts"]
 }
