@@ -28,12 +28,28 @@ test('부팅 → 링크 접속 → 스크린샷', async ({ page }) => {
   expect(await page.evaluate(() => window.__debug.errors)).toEqual([]);
 });
 
+test('T2 씬이 실제로 그려진다 — 드로우콜·삼각형 예산', async ({ page }) => {
+  await page.goto('/app.html');
+  await page.waitForFunction(() => window.__debug?.ready === true, null, { timeout: 30_000 });
+  // 씬 패스가 최소 한 번 돌 때까지
+  await page.waitForFunction(() => window.__debug.render.calls > 0, null, { timeout: 30_000 });
+
+  const render = await page.evaluate(() => window.__debug.render);
+  // 프러스텀 컬링이 걸리므로 헤드리스 씬 검사(62)보다 작게 나온다.
+  expect(render.calls, '드로우콜 예산 초과').toBeLessThan(BUDGET.drawCalls);
+  // 지형·식생·소품이 실제로 그려지고 있는지 — 빈 화면이면 여기서 걸린다.
+  expect(render.triangles, '씬이 비어 있다').toBeGreaterThan(50_000);
+
+  await page.screenshot({ path: 'tests/__screenshots__/t2-world.png' });
+});
+
 test('__debug 훅 규격 — 좌표·속도·fps·렌더 정보 노출', async ({ page }) => {
   await page.goto('/app.html');
   await page.waitForFunction(() => window.__debug?.ready === true, null, { timeout: 10_000 });
 
-  // fps 표본이 쌓일 때까지 몇 프레임 돌린다.
-  await page.waitForFunction(() => window.__debug.fps > 0, null, { timeout: 10_000 });
+  // 이 컨테이너는 소프트웨어 렌더라 1fps 미만이 나온다. fps 값이 아니라
+  // **프레임이 진행하는지**로 판정한다 (fps 는 0.5초 창 평균이라 0 으로 찍힐 수 있다).
+  await page.waitForFunction(() => window.__debug.frame > 2, null, { timeout: 30_000 });
 
   const snap = await page.evaluate(() => ({
     fps: window.__debug.fps,
@@ -44,10 +60,9 @@ test('__debug 훅 규격 — 좌표·속도·fps·렌더 정보 노출', async (
   }));
 
   expect(snap.hasSetInput).toBe(true);
-  expect(snap.frame).toBeGreaterThan(0);
+  expect(snap.frame).toBeGreaterThan(2);
   expect(snap.drone.pos).toHaveLength(3);
-  // 빈 씬이므로 드로우콜은 합성 패스만큼만 나온다. 예산 상한은 T2부터 의미를 갖는다.
-  expect(snap.render.calls).toBeLessThan(BUDGET.drawCalls);
+  expect(snap.render.calls).toBeGreaterThan(0);
 });
 
 test('빌드 스탬프가 화면과 __debug 양쪽에 찍힌다', async ({ page }) => {

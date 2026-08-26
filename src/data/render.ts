@@ -6,11 +6,14 @@ export const RT_H = 270;
 
 export const CAMERA = {
   FOV: 118,
-  NEAR: 0.1,
-  FAR: 1200,
+  NEAR: 0.3,
+  FAR: 1600,
   /** 배럴 왜곡 계수. 오버레이 좌표에 역변환을 동일하게 적용해야 한다 (07 문서 2.4). */
   DISTORT: 0.26,
 } as const;
+
+/** 안개 — 프로토타입 실측값. 260/1150 으로 잡으면 원경이 과하게 선명해진다. */
+export const FOG = { color: 0xa8b5ac, near: 60, far: 540 } as const;
 
 export const SIGNAL = {
   /** 이 거리부터 감쇠 시작 (m) */

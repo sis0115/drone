@@ -25,8 +25,10 @@
 - **배포 연결 완료** — https://drone-azure-rho.vercel.app + CI
   - `/` = **프로토타입 v0.7 데모** (지금 볼 것은 이쪽)
   - `/app.html` = 코드베이스 스캐폴딩 (T1 결과물 — 아직 빈 화면)
-- Playwright 7종 통과
-- 다음: **T2 (프로토타입 모듈 분해 이식)**
+- **T2 완료** — 프로토타입 씬을 `src/world/`·`src/render/` 로 분해 이식.
+  드로우콜 **62** (프로토타입 116 대비 -54), 장애물 29개 일치
+- Playwright 8종 통과
+- 다음: **T3 (비행 2종 + 물리 테스트)**
 
 ### 검증 완료된 수치
 | 항목 | 실측 |
@@ -82,7 +84,9 @@ npm run dev        # http://localhost:5173 (host 노출 — 폰에서 같은 망
 | `npm run build` | 타입 체크 + 프로덕션 빌드 (`dist/`) |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run harness` | 헤드리스 씬 생성 검증 (`tools/harness.js`) |
-| `npm run perf` | 드로우콜/삼각형 실측 — 예산(<120) 초과 시 종료 코드 1 |
+| `npm run perf` | **프로토타입**의 드로우콜/삼각형 실측 |
+| `npm run scene` | **코드베이스**의 드로우콜/삼각형 실측 — 예산(<120) 초과 시 종료 코드 1 |
+| `npm run compare` | 프로토타입 ↔ 코드베이스를 같은 조건으로 렌더해 스크린샷 2장 저장 |
 | `npm test` | Playwright (빌드 → preview → 검증 → 스크린샷) |
 | `npm run verify` | 위 4종 일괄 — **커밋 전 필수** |
 

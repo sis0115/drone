@@ -25,7 +25,9 @@ const executablePath = preinstalledChromium();
  */
 export default defineConfig({
   testDir: './tests',
-  timeout: 30_000,
+  // T2 이후 씬이 무거워졌다. 이 컨테이너는 소프트웨어 렌더(SwiftShader)라
+  // 한 프레임에 1초 이상 걸려 30초로는 부트조차 못 끝낸다. 실기 성능과 무관한 값이다.
+  timeout: 120_000,
   fullyParallel: false,
   workers: 1,
   retries: 0,
@@ -37,9 +39,10 @@ export default defineConfig({
   projects: [
     {
       // 1차 타깃은 모바일 웹이다. 데스크톱은 T4 입력 작업에서 추가한다.
+      // **가로 고정** — GDD 7장. 세로 뷰포트로 재면 16:9 렌더가 늘어나 화면 판단이 틀어진다.
       name: 'phone',
       use: {
-        ...devices['Pixel 7'],
+        ...devices['Pixel 7 landscape'],
         isMobile: true,
         hasTouch: true,
         launchOptions: executablePath ? { executablePath } : {},
