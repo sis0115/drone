@@ -26,7 +26,7 @@ export class Hud {
   }
 
   update(fps: number, signalQuality: number): void {
-    this.fpsEl.textContent = `${fps} FPS`;
+    this.fpsEl.textContent = `${fps < 10 ? fps.toFixed(1) : Math.round(fps)} FPS`;
     // 45fps 미만은 예산 미달 — 실기에서 바로 보이도록 색으로 경고한다 (02 문서 5장).
     this.fpsEl.dataset.warn = fps > 0 && fps < 45 ? '1' : '0';
     this.statusEl.textContent = `RSSI ${Math.round(signalQuality * 100)}%`;

@@ -11,6 +11,11 @@ export class Time {
    */
   wall = 0;
   frame = 0;
+  /**
+   * 실측 프레임레이트. **반드시 클램프 전의 raw dt 로 계산한다.**
+   * 프로토타입은 클램프된 dt(상한 0.05s)를 누적해서, 실제 1.1fps 인 상황에서도
+   * 20fps 라고 표시했다(실측). 저사양 진단이 불가능해지는 함정이다.
+   */
   fps = 0;
 
   private last = 0;
@@ -37,7 +42,9 @@ export class Time {
     this.fpsAccum += raw;
     this.fpsFrames++;
     if (this.fpsAccum >= 0.5) {
-      this.fps = Math.round(this.fpsFrames / this.fpsAccum);
+      const measured = this.fpsFrames / this.fpsAccum;
+      // 10 미만은 소수점 한 자리까지 — 0.8fps 를 "1" 로 뭉개면 진단이 안 된다.
+      this.fps = measured < 10 ? Math.round(measured * 10) / 10 : Math.round(measured);
       this.fpsAccum = 0;
       this.fpsFrames = 0;
     }
