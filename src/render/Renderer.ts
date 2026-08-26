@@ -15,8 +15,11 @@ import { DEFAULT, type PostFxParams } from '@/data/postfx';
  */
 export class FpvRenderer {
   readonly renderer: THREE.WebGLRenderer;
-  /** 씬은 밖에서 만들어 넣는다 — SceneBuilder 가 렌더러에 의존하지 않게 하기 위함. */
-  readonly scene: THREE.Scene;
+  /**
+   * 씬은 밖에서 만들어 넣는다 — SceneBuilder 가 렌더러에 의존하지 않게 하기 위함.
+   * 화면이 바뀌면 통째로 교체된다 (인게임 ↔ 메뉴).
+   */
+  scene: THREE.Scene;
   readonly camera: THREE.PerspectiveCamera;
 
   private readonly rtA: THREE.WebGLRenderTarget;

@@ -1,25 +1,26 @@
+import type { App } from '@/app/App';
+import type { FlightScreen } from '@/app/screens/FlightScreen';
 import type { DroneTelemetry } from '@/drone/FlightModel';
-import type { InputFrame, InputSource } from '@/input/InputSource';
-import { ScriptedInputSource } from '@/input/InputSource';
+import { ScriptedInputSource, type InputFrame } from '@/input/InputSource';
+import { bus } from '@/core/EventBus';
+import { state } from '@/core/GameState';
 
 /**
- * Playwright가 붙잡는 검증 훅 (02 문서 3.2).
- * 좌표·속도·fps를 노출하고, 스크립트 입력을 사람 입력과 같은 자리에 꽂는다.
- * 프로덕션 빌드에서도 남긴다 — 실기 폰에서 콘솔로 수치를 확인해야 하기 때문.
+ * Playwright 가 붙잡는 검증 훅 (02 문서 3.2).
+ * 좌표·속도·fps 를 노출하고, 스크립트 입력을 사람 입력과 같은 자리에 꽂는다.
+ * 프로덕션 빌드에도 남긴다 — 실기 폰에서 콘솔로 수치를 봐야 하기 때문.
  */
 export interface DebugApi {
   state: Record<string, unknown>;
   drone: { pos: [number, number, number]; vel: [number, number, number]; agl: number; spd: number };
   fps: number;
   frame: number;
-  mission: string | null;
+  screen: string;
   render: { calls: number; triangles: number };
-  /** 배포 확인용 — 지금 돌고 있는 화면이 어느 커밋인지. */
   build: { id: string; branch: string };
   errors: string[];
   ready: boolean;
   setInput(fn: ((elapsed: number, dt: number) => Partial<InputFrame>) | null): void;
-  /** 비행 조작 — Playwright 가 사람과 같은 경로로 기체를 몬다. */
   flight: FlightDebugApi;
 }
 
@@ -42,29 +43,20 @@ declare global {
 
 const ZERO3: [number, number, number] = [0, 0, 0];
 
-export interface DebugHost {
-  snapshot(): Record<string, unknown>;
-  telemetry(): DroneTelemetry | null;
-  renderInfo(): { calls: number; triangles: number };
-  fps(): number;
-  frame(): number;
-  missionId(): string | null;
-  setInputSource(source: InputSource | null): void;
-  flight: FlightDebugApi;
-}
-
-export function installDebug(host: DebugHost): DebugApi {
+export function installDebug(app: App, flight: FlightScreen): DebugApi {
   const errors: string[] = [];
   window.addEventListener('error', (e) => errors.push(String(e.message)));
   window.addEventListener('unhandledrejection', (e) => errors.push(String(e.reason)));
 
+  const inFlight = (): boolean => app.screen?.name === 'flight';
+
   const api: DebugApi = {
     get state() {
-      return host.snapshot();
+      return { ...state.snapshot(), input: app.input };
     },
     get drone() {
-      const t = host.telemetry();
-      if (!t) return { pos: ZERO3, vel: ZERO3, agl: 0, spd: 0 };
+      if (!inFlight()) return { pos: ZERO3, vel: ZERO3, agl: 0, spd: 0 };
+      const t = flight.telemetry;
       return {
         pos: [t.pos.x, t.pos.y, t.pos.z] as [number, number, number],
         vel: [t.vel.x, t.vel.y, t.vel.z] as [number, number, number],
@@ -73,25 +65,38 @@ export function installDebug(host: DebugHost): DebugApi {
       };
     },
     get fps() {
-      return host.fps();
+      return app.time.fps;
     },
     get frame() {
-      return host.frame();
+      return app.time.frame;
     },
-    get mission() {
-      return host.missionId();
+    get screen() {
+      return app.screen?.name ?? 'none';
     },
     get render() {
-      return host.renderInfo();
+      return app.renderer.info;
     },
     build: { id: __BUILD_ID__, branch: __BUILD_BRANCH__ },
     errors,
     ready: false,
     setInput(fn) {
-      host.setInputSource(fn ? new ScriptedInputSource(fn) : null);
+      app.setInputSource(fn ? new ScriptedInputSource(fn) : null);
     },
-    flight: host.flight,
+    flight: {
+      mode: () => state.flightMode,
+      setMode: (m) => flight.setMode(m),
+      telemetry: () => flight.telemetry,
+      battery: () => flight.batteryLevel,
+      crashed: () => flight.crashed,
+      respawn: () => flight.spawn(),
+      setWindCalm: () => flight.calmWind(),
+    },
   };
+
+  // 인게임에 들어선 순간을 준비 완료로 본다 — 테스트가 여기서 기다린다.
+  bus.on('screen:changed', ({ to }) => {
+    if (to === 'flight') api.ready = true;
+  });
 
   window.__debug = api;
   return api;

@@ -16,7 +16,7 @@ import { chromium, devices } from '@playwright/test';
 const THREE_URL = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
 const CACHE = join(process.cwd(), 'node_modules', '.slfpv-ref');
 const OUT = join(process.cwd(), 'tests', '__screenshots__');
-const APP_URL = process.env.APP_URL ?? 'http://127.0.0.1:4173/app.html';
+const APP_URL = process.env.APP_URL ?? 'http://127.0.0.1:4173/';
 const PORT = 8899;
 
 mkdirSync(CACHE, { recursive: true });

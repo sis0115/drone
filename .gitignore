@@ -1,7 +1,7 @@
 node_modules/
 dist/
 # prototype 에서 빌드 때마다 생성된다 (tools/sync-demo.js)
-public/index.html
+public/prototype.html
 .vite/
 .DS_Store
 *.local

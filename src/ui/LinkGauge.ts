@@ -1,7 +1,12 @@
 import { t } from '@/i18n';
 
-/** 인게임 진입 로딩을 연출로 소화한다 — 검은 화면 + LINK ESTABLISHING + RSSI 게이지 (04 문서 2장). */
-export class BootScreen {
+/**
+ * 링크 접속 게이지 — 인게임 진입 로딩을 연출로 소화한다 (04 문서 2장).
+ * 검은 화면 + LINK ESTABLISHING + RSSI 게이지가 차오름.
+ *
+ * 이건 **DOM 위젯**이지 `app/Screen` 이 아니다. LinkScreen 이 이걸 쓴다.
+ */
+export class LinkGauge {
   private readonly bar: HTMLElement;
 
   constructor(private readonly root: HTMLElement) {

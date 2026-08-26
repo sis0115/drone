@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { fbm } from './noise';
 import { dirtTex, groundTex, roadTex, texMat } from './textures';
-import type { ThermalRegistry } from '@/render/ThermalRegistry';
+import type { ThermalRegistry } from './ThermalRegistry';
 
 /**
  * 지형·수면·도로. 전부 지형 높이를 따라간다.

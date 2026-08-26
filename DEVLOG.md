@@ -444,3 +444,56 @@ README·07 문서가 "폰에서 프로토타입을 열어 HUD 우상단 fps 확�
   (README 7장 / 07 문서 4장 / CLAUDE.md)
 
 **교훈**: 측정 도구를 먼저 의심할 것. 30배 격차가 나오면 대상보다 자(尺)가 틀렸을 가능성이 크다.
+---
+
+## 2026-08-26 — 구조화: app/ · platform/ 분리, 계층 규칙을 테스트로 강제
+
+**배경**: "HTML 로 계속하지 말고 제대로 프로그램 구조를 잡자"는 요청.
+확인해 보니 코드베이스는 이미 TS 모듈 38개 / 3,099줄이고 `app.html` 은 22줄짜리 Vite 엔트리였다.
+**그렇게 보인 진짜 이유는 배포 루트 `/` 가 프로토타입 HTML 을 서빙하고 있었기 때문이다.**
+다만 구조에 실제 약점이 있었고 그건 사실이었다.
+
+**1. 배포 경로 교체 (README 가 "T2 이식이 끝나면 바꾼다"고 예고한 시점)**
+- `/` = **코드베이스** / `/prototype.html` = 기준선(비교용)
+- Vite 엔트리 `app.html` → `index.html`, `tools/sync-demo.js` 출력도 이동
+
+**2. `src/app/` — 수명주기와 화면 전환**
+`main.ts` 가 렌더러·월드·비행·신호·배터리·HUD 를 전부 배선하고 루프까지 들고 있었다.
+- `App` 이 루프를 소유하는 **유일한 곳**. 하는 일은 부트스트랩 / 화면 전환 / 프레임 루프 셋뿐
+- `Screen` 인터페이스 + `LinkScreen`(접속 연출) / `FlightScreen`(인게임)
+- 화면 흐름이 GDD 2장과 1:1 로 대응한다. 나머지 화면은 T8~T9 에서 같은 인터페이스로 들어온다
+- **`main.ts` 199줄 → 19줄**
+
+**3. `src/platform/` — 웹↔모바일 분기점**
+"웹 먼저, 나중에 모바일" 의 구조적 답. storage / vibrate / lockLandscape / keepAwake /
+safeAreaInsets / `usesFleetStock`(GDD 6.6.3 의 모바일·Steam 분기).
+이식은 `CapacitorPlatform` 을 하나 더 만들고 `setPlatform()` 으로 갈아 끼우는 것이고
+**호출부는 한 줄도 바뀌지 않는다.**
+미리 만든 이유: 나중에 붙이려면 햅틱·저장 호출이 전역에 흩어진 뒤라 전부 찾아 고쳐야 한다.
+
+**4. 계층 의존 방향 — 문서가 아니라 테스트로 강제**
+```
+main → app → {ui, render, world, drone, input, mission, economy} → core → platform → {data, i18n}
+```
+`tests/architecture.spec.ts` 4종이 검사한다: 방향 위반 / 같은 층 금지 조합 /
+data·i18n 순수성 / `main.ts` 길이 / `world/` 렌더러 비의존.
+
+**처음 돌리자마자 이미 새어 있던 위반 2건을 잡았다:**
+- `core/LineOfSight` → `world/Props`(Obstacle 타입) — core 가 world 를 알고 있었다.
+  → `Occluder` 최소 인터페이스를 core 에 두어 끊었다 (Obstacle 이 구조적으로 만족)
+- `world/SceneBuilder` → `render/SkyDome` — 하늘돔은 렌더러가 아니라 **씬 오브젝트**다.
+  → `world/SkyDome.ts` 로 이동. `ThermalRegistry` 도 같은 이유로 `world/` 로 옮겼다
+  (world → render 의존이 남으면 `npm run scene` 이 브라우저 없이 못 돈다)
+
+→ **구조는 적어 두면 무너진다.** 급할 때 지름길이 하나씩 생기고 결국 만능 파일로 돌아간다.
+테스트가 유일하게 실효성 있는 방어선이다.
+
+**5. EventBus 실사용**
+절대 규칙 7 이 "시스템 간 직접 참조 금지"인데 `main.ts` 가 전부 직접 배선하고 있었다.
+`screen:changed` / `flight:crashed` / `flight:spawned` / `flight:mode-changed` / `wind:gust` 추가.
+화면은 UI 를 직접 부르지 않고 이벤트만 낸다.
+
+**검증**: `npm run verify` — Playwright **28/28** (구조 4 + 물리 14 + 브라우저 10).
+드로우콜·물리 실측값 변동 없음.
+
+**다음**: T4 — 입력(가상 패드/키보드/스크립트) + 어시스트 3단계 분화.

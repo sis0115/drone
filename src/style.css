@@ -1,5 +1,10 @@
 /* 04 문서 1.2 컬러 토큰 8색. 라운드 모서리·그림자·그라데이션 금지. */
 :root {
+  /* 노치·홈바 여백 — platform.safeAreaInsets() 가 읽는다 */
+  --sat: env(safe-area-inset-top, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
   --c-bg-base: #0a0f0b;
   --c-bg-panel: #111a13;
   --c-line: #2e4a34;
@@ -38,6 +43,7 @@ html, body {
   background: #000;
 }
 
+#overlay { position: absolute; inset: 0; pointer-events: none; }
 #hud, #boot { position: absolute; inset: 0; pointer-events: none; }
 
 .hud-corner {

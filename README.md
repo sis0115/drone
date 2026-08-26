@@ -23,12 +23,14 @@
 - **헤드리스 검증 도구 동작** (`tools/`) — 브라우저 없이 Three.js 씬 검증
 - **T1 완료** — Vite + TypeScript 스캐폴딩, 480×270 3버퍼 렌더 파이프 골격, `window.__debug` 훅
 - **배포 연결 완료** — https://drone-azure-rho.vercel.app + CI
-  - `/` = **프로토타입 v0.7 데모** (지금 볼 것은 이쪽)
-  - `/app.html` = 코드베이스 스캐폴딩 (T1 결과물 — 아직 빈 화면)
+  - `/` = **코드베이스** (지금 볼 것은 이쪽)
+  - `/prototype.html` = 프로토타입 v0.7 기준선 (비교용)
 - **T2 완료** — 프로토타입 씬을 `src/world/`·`src/render/` 로 분해 이식.
   드로우콜 **62** (프로토타입 116 대비 -54), 장애물 29개 일치
 - **T3 완료** — 비행 2종(Arcade/Pro) + 바람·배터리·LOS 차폐. 물리 테스트 14종이 실측값을 고정
-- Playwright **24종** 통과
+- **구조화 완료** — `app/`(수명주기·화면) + `platform/`(웹↔모바일 분기점) 분리.
+  `main.ts` 199줄 → 19줄. 계층 의존 방향을 `tests/architecture.spec.ts` 가 강제
+- Playwright **28종** 통과
 - 다음: **T4 (입력: 가상 패드/키보드/스크립트)**
 
 ### 검증 완료된 수치
@@ -71,13 +73,13 @@
 ```bash
 npm install
 npm run dev        # http://localhost:5173 (host 노출 — 폰에서 같은 망으로 접속 가능)
-                   #   /          → 프로토타입 데모
-                   #   /app.html  → 코드베이스 스캐폴딩
+                   #   /                → 코드베이스
+                   #   /prototype.html  → 프로토타입 기준선
 ```
 
-`/` 로 나가는 데모는 `prototype/signal_lost_fpv.html` 을 **가공 없이 복사**한 것이다
-(`tools/sync-demo.js` 가 dev/build 전에 `public/index.html` 로 넣는다).
-원본은 기준선이라 수정 금지이고, 배포본이 원본과 바이트 단위로 같은지는 테스트가 지킨다.
+`/prototype.html` 은 `prototype/signal_lost_fpv.html` 을 **가공 없이 복사**한 것이다
+(`tools/sync-demo.js` 가 dev/build 전에 `public/prototype.html` 로 넣는다).
+원본은 수정 금지이고, 배포본이 원본과 바이트 단위로 같은지는 테스트가 지킨다.
 
 | 명령 | 하는 일 |
 |---|---|
@@ -129,7 +131,7 @@ git push origin develop # → Vercel 프리뷰 URL 자동 생성 → 폰에서 �
 
 | | |
 |---|---|
-| 프로덕션 | https://drone-azure-rho.vercel.app (`main`) — `/` 는 데모, `/app.html` 은 스캐폴딩 |
+| 프로덕션 | https://drone-azure-rho.vercel.app (`main`) — `/` 는 코드베이스, `/prototype.html` 은 기준선 |
 | 프리뷰 | `develop` push마다 URL 자동 생성 |
 | 기본 브랜치 | `main` |
 
@@ -169,7 +171,7 @@ HUD 우하단에 `브랜치 커밋해시` 가 찍힌다 (예: `develop a1b2c3d`)
 
 ## 7. 우선 확인이 필요한 것
 
-- **폰 실기 fps** — **`/app.html` 우상단**을 볼 것. 45 미만이면 풀 인스턴스 수 → 그림자 해상도 → 덤불 수 순으로 조정.
-  ⚠️ **`/`(프로토타입)의 fps 표시는 쓰면 안 된다.** 클램프된 dt 를 누적해 계산하는 버그가 있어
+- **폰 실기 fps** — **`/` 우상단**을 볼 것. 45 미만이면 풀 인스턴스 수 → 그림자 해상도 → 덤불 수 순으로 조정.
+  ⚠️ **`/prototype.html` 의 fps 표시는 쓰면 안 된다.** 클램프된 dt 를 누적해 계산하는 버그가 있어
   **20fps 아래로 내려가지 않는다**(실측: 진짜 1.1fps 인데 22fps 로 표시). 07 문서 4장 참조
 - **화면 감성 파라미터 확정** — 프로토타입 튜닝 패널에서 프리셋 A/B/C 중 선택 후 미세조정 → JSON 복사 → `src/data/postfx.ts`에 고정

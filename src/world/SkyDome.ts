@@ -1,6 +1,11 @@
 import * as THREE from 'three';
 
-/** 하늘돔 — 수직 그라데이션 1콜. 열화상에서 하늘은 거의 순흑이므로 별도 처리한다(T6). */
+/**
+ * 하늘돔 — 수직 그라데이션 1콜. 열화상에서 하늘은 거의 순흑이므로 별도 처리한다(T6).
+ *
+ * `world/` 에 있다 — 렌더러가 아니라 **씬의 오브젝트**이기 때문이다.
+ * `render/` 에 두면 world → render 의존이 생겨 헤드리스 씬 검사가 깨진다.
+ */
 export function createSkyDome(): THREE.Mesh {
   const material = new THREE.ShaderMaterial({
     uniforms: {

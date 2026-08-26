@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { ThermalRegistry } from '@/render/ThermalRegistry';
+import type { ThermalRegistry } from './ThermalRegistry';
 
 /**
  * 반복 오브젝트는 **반드시** InstancedMesh 로 만든다.

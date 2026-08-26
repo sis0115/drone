@@ -34,9 +34,6 @@ export default defineConfig(() => {
       port: 5173,
     },
     build: {
-      // 사이트 루트(`/`)는 프로토타입 데모다 (public/index.html).
-      // 코드베이스 스캐폴딩은 /app.html 로 비켜 둔다 — T2 에서 이식이 끝나면 자리를 바꾼다.
-      rollupOptions: { input: fileURLToPath(new URL('./app.html', import.meta.url)) },
       target: 'es2022',
       sourcemap: true,
       // 저사양 폰 대응: 청크 경고 임계를 낮게 두어 번들 비대화를 조기에 인지한다.

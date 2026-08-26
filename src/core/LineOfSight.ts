@@ -1,5 +1,13 @@
-import { Ray, Vector3 } from 'three';
-import type { Obstacle } from '@/world/Props';
+import { Ray, Vector3, type Box3 } from 'three';
+
+/**
+ * 차폐물의 최소 형태. `world/Props` 의 `Obstacle` 이 구조적으로 이걸 만족하므로
+ * **core 가 world 를 import 하지 않고도** 같은 객체를 받을 수 있다
+ * (계층 방향은 `tests/architecture.spec.ts` 가 강제한다).
+ */
+export interface Occluder {
+  box: Box3;
+}
 
 /**
  * 가시선 차폐 판정 — 조종소와 기체 사이를 건물이 막는가.
@@ -19,7 +27,7 @@ export class LineOfSight {
   /** 조종소 위치. 기본은 착륙 패드 근처. */
   constructor(private readonly home = new Vector3(0, 1.5, 0)) {}
 
-  update(dronePos: Vector3, obstacles: readonly Obstacle[]): void {
+  update(dronePos: Vector3, obstacles: readonly Occluder[]): void {
     this.origin.copy(dronePos);
     this.dir.subVectors(this.home, this.origin);
     const dist = this.dir.length();

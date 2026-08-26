@@ -3,7 +3,7 @@ import { fbm, rnd } from './noise';
 import { grassTex } from './textures';
 import { terrainH } from './Terrain';
 import { buildInstanced, type InstanceSpec } from './Instancing';
-import type { ThermalRegistry } from '@/render/ThermalRegistry';
+import type { ThermalRegistry } from './ThermalRegistry';
 import type { AoCollector } from './Ao';
 
 /**

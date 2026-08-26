@@ -3,7 +3,7 @@ import { aoTex } from './textures';
 import { terrainH } from './Terrain';
 import { rnd } from './noise';
 import type { InstanceSpec } from './Instancing';
-import type { ThermalRegistry } from '@/render/ThermalRegistry';
+import type { ThermalRegistry } from './ThermalRegistry';
 
 /**
  * 접지 그늘(AO 패치). 나무·건물이 각자 요청을 쌓아 두고,

@@ -29,25 +29,66 @@
 ```
 signal-lost-fpv/
 ├── docs/                    # 기획 문서 (코드보다 우선)
-├── prototype/               # v0.7 단일 파일 (참조용, 수정 금지)
+├── prototype/               # v0.7 단일 파일 (기준선, 수정 금지)
 ├── tools/                   # 헤드리스 검증 하네스
-├── src/
-│   ├── main.ts
-│   ├── core/        GameState / EventBus / Save / Time
-│   ├── drone/       ArcadeFlight / ProFlight / DroneSpec / Battery
-│   ├── input/       VirtualPad / KeyboardInput / InputSource
-│   ├── render/      Renderer(480p RT) / FpvPostFX / ThermalMode / SkyDome
-│   ├── world/       Terrain / SceneBuilder / Instancing / Obstacles / Targets
-│   ├── mission/     MissionDef / MissionRunner / Threats / StrikePackage
-│   ├── ui/          Hud / TargetOverlay / Screens / Radio / TuningPanel
-│   ├── economy/     Sp / FleetStock / Quota
-│   ├── i18n/        strings / locale
-│   └── data/        정적 데이터 정의
-├── tests/           physics.spec.ts / visual.spec.ts
-└── index.html / vite.config.ts / package.json / README.md / DEVLOG.md
+├── index.html               # Vite 엔트리 (캔버스 + 오버레이 컨테이너, 20줄)
+└── src/
+    ├── main.ts        배선만 (20줄 미만 — 테스트가 강제)
+    ├── app/           **수명주기·화면 전환.** 루프를 소유하는 유일한 곳
+    │     App.ts / Screen.ts / screens/{LinkScreen, FlightScreen}
+    ├── platform/      **웹↔모바일 분기점.** storage / vibrate / 화면잠금 / safeArea / 재고제 플래그
+    ├── ui/            DOM·SVG 위젯 (Hud, LinkGauge) — 캔버스 밖이라 선명하다
+    ├── render/        Renderer(480p RT 3버퍼) / FpvPostFX
+    ├── world/         SceneBuilder / Terrain / Vegetation / Props / SkyDome / ThermalRegistry
+    ├── drone/         FlightModel(iface) / ArcadeFlight / ProFlight / Wind / Battery
+    ├── input/         InputSource(iface) / KeyboardInput / VirtualPad(T4)
+    ├── mission/       MissionDef / MissionRunner / Threats (T7~T8)
+    ├── economy/       Sp / FleetStock / Quota (T9)
+    ├── core/          GameState / EventBus / Save / Time / SignalModel / LineOfSight
+    ├── i18n/          strings (원본 docs/strings_master.csv)
+    └── data/          정적 튜닝 값 — 다른 계층을 부르지 않는 순수 데이터
 ```
 
-**원칙**: 문자열 하드코딩 금지(i18n), 튜닝 값 하드코딩 금지(`src/data/`), 시스템 간 직접 참조 금지(EventBus).
+### 2.1 의존 방향 — **테스트가 강제한다**
+
+```
+main → app → {ui, render, world, drone, input, mission, economy} → core → platform → {data, i18n}
+```
+
+- **아래가 위를 import 하지 않는다.** 예: `core/` 는 `world/` 를 모른다
+  (필요하면 `LineOfSight.Occluder` 처럼 **최소 구조 인터페이스**를 core 쪽에 둔다).
+- 같은 층에서도 금지 조합이 있다: `world ↛ render`, `drone ↛ ui` 등.
+  특히 **`world/` 는 렌더러를 몰라야 한다** — 그래야 `npm run scene` 이 브라우저 없이 씬을 짓는다.
+- `data/` `i18n/` 은 게임 코드를 부르지 않는다.
+- `main.ts` 는 20줄 미만.
+
+`tests/architecture.spec.ts` 가 위 규칙을 전부 검사한다. **문서로만 적어 두면 무너진다** —
+실제로 이 테스트를 처음 돌렸을 때 `core → world`, `world → render` 두 건이 이미 새어 있었다.
+
+### 2.2 화면 흐름
+
+GDD 2장 / 04 문서 2장의 흐름을 `app/Screen` 구현들로 표현한다.
+현재: `link`(접속 연출) → `flight`(인게임). 나머지(title/ops/briefing/loadout/debrief)는 T8~T9.
+**화면끼리 서로를 직접 부르지 않는다** — 전환은 `ctx.go()`, 통지는 EventBus (절대 규칙 7).
+
+### 2.3 웹 먼저, 모바일 나중 — 이식 경로
+
+웹으로 만들고 **Capacitor 로 감싸 모바일로 낸다.** 게임 코드는 그대로 간다.
+그러려면 기기에 닿는 부분이 한 곳에 모여 있어야 하고, 그게 `src/platform/` 이다.
+
+| 기기 기능 | 웹 (현재) | 모바일 이식 시 |
+|---|---|---|
+| 저장 | localStorage | Capacitor Preferences |
+| 진동 | `navigator.vibrate` | Haptics 플러그인 |
+| 화면 잠금 | Screen Orientation API | 네이티브 매니페스트 |
+| 화면 켜둠 | Wake Lock API | KeepAwake 플러그인 |
+| 노치 여백 | CSS `env(safe-area-inset-*)` | 동일 |
+| 재고제 (GDD 6.6.3) | 켬 | 모바일 켬 / **Steam 끔** |
+
+이식 작업은 `WebPlatform` 옆에 `CapacitorPlatform` 을 하나 더 만들고 `setPlatform()` 으로 갈아 끼우는 것이다.
+**호출부는 한 줄도 바뀌지 않는다.**
+
+미리 만들어 둔 이유: 나중에 붙이려면 햅틱·저장 호출이 코드 전역에 흩어진 뒤라 전부 찾아 고쳐야 한다.
 
 ## 3. 검증 루프 (이 스택을 택한 핵심 이유)
 

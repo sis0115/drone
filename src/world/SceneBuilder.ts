@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { ThermalRegistry } from '@/render/ThermalRegistry';
-import { createSkyDome } from '@/render/SkyDome';
+import { ThermalRegistry } from './ThermalRegistry';
+import { createSkyDome } from './SkyDome';
 import { buildTerrain, terrainH, type TerrainHandles } from './Terrain';
 import { FOG } from '@/data/render';
 import { buildVegetation, type VegetationHandles } from './Vegetation';

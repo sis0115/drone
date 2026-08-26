@@ -3,9 +3,16 @@
  * 이벤트 이름은 `도메인:동사` 규칙.
  */
 export interface GameEvents {
-  'boot:ready': void;
+  'app:ready': void;
+  /** 화면 전환. UI 는 이걸 듣고 반응한다 — 화면끼리 직접 부르지 않는다. */
+  'screen:changed': { from: string; to: string };
   'link:established': void;
   'link:lost': { reason: string };
+  'flight:crashed': { reason: string };
+  'flight:spawned': void;
+  'flight:mode-changed': { mode: 'arcade' | 'pro' };
+  /** 돌풍 예고 — GDD 4.5 규칙 1: 모든 위협은 예고된다. */
+  'wind:gust': { strength: number };
   'signal:changed': { quality: number };
   'mission:started': { missionId: string };
   'mission:ended': { missionId: string; cleared: boolean };

@@ -23,7 +23,15 @@
 5. **수익화**: 유료는 시간만 판다. 성능 P2W·확률형 상자·FOMO 타이머 금지.
 6. **하드코딩 금지**: 문자열은 `src/i18n`(원본 `docs/strings_master.csv`), 튜닝 값은 `src/data/`.
 7. **시스템 간 직접 참조 금지** — 교차 통신은 `src/core/EventBus.ts`.
-8. `prototype/signal_lost_fpv.html` 은 **기준선이라 수정 금지.** 이식은 복사해서 한다.
+   화면 전환은 `ctx.go()`, 다른 시스템 통지는 EventBus.
+8. **계층 의존 방향** (02 문서 2.1) — 아래가 위를 부르지 않는다:
+   `main → app → {ui, render, world, drone, input, mission, economy} → core → platform → {data, i18n}`
+   - `world/` 는 **렌더러를 몰라야 한다** (그래야 `npm run scene` 이 브라우저 없이 돈다)
+   - `main.ts` 는 배선만, 20줄 미만
+   - `tests/architecture.spec.ts` 가 강제한다. 위반하면 테스트가 깨진다
+9. `prototype/signal_lost_fpv.html` 은 **기준선이라 수정 금지.** 이식은 복사해서 한다.
+10. **기기에 닿는 것은 `src/platform/` 을 통해서만.** 저장·진동·화면잠금·safeArea.
+    직접 `localStorage`/`navigator.vibrate` 를 부르면 모바일 이식 때 전역 수색이 된다.
 
 ## 검증 (커밋 전 필수)
 
@@ -42,7 +50,7 @@ npm run compare   # 프로토타입 ↔ 코드베이스를 같은 조건으로 �
 ## 배포
 
 - `develop` 에서 개발, 마일스톤마다 `main` 병합. `main` = 프로덕션.
-- `/` = 프로토타입 데모, `/app.html` = 코드베이스. (T2 이식이 끝나면 자리를 바꾼다)
+- `/` = **코드베이스**, `/prototype.html` = 프로토타입 기준선(비교용).
 - HUD 우하단 빌드 스탬프(`브랜치 커밋해시`)로 폰에서 반영 여부를 확인한다.
 
 ## 이 환경에서 안 되는 것
@@ -52,6 +60,6 @@ npm run compare   # 프로토타입 ↔ 코드베이스를 같은 조건으로 �
 - **여기 fps 는 실기와 무관하다.** SwiftShader 소프트 렌더라 프로토타입·코드베이스 모두 ~1fps 다.
   Playwright 타임아웃이 120초인 이유. **두 쪽 성능은 동등하다** — 회귀 없음(실측).
 - **⚠️ 프로토타입의 fps 표시를 믿지 말 것.** 클램프된 dt 를 누적해 계산해서
-  **20fps 아래로 내려가지 않는다**(진짜 1.1fps 인데 22fps 표시). 실기 측정은 **`/app.html`** 에서.
+  **20fps 아래로 내려가지 않는다**(진짜 1.1fps 인데 22fps 표시). 실기 측정은 **`/`(코드베이스)** 에서.
 - **폰 실기 fps 미측정** — 프로젝트 최우선 미해결 항목. 45 미만이면 조정 순서는
   풀 인스턴스 수 → 그림자 해상도 → 덤불 수.
