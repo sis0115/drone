@@ -128,7 +128,8 @@ export class LoadoutScreen implements Screen {
   }
 
   private sortie(): void {
-    this.ctx.go('link');
+    // 브리핑부터 — 첫 판의 "왜 나가는가"가 여기서 생긴다 (03 문서 4장)
+    this.ctx.go('briefing');
   }
 
   update(): void {

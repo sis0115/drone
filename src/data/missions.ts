@@ -18,6 +18,8 @@ export interface MissionDef {
   id: string;
   /** `src/i18n` 키 */
   titleKey: string;
+  /** 브리핑 규격 (03 문서 4장): 상황 2줄 · 임무 · 조언(전술 힌트) · 캐릭터 한 줄 */
+  brief: { situationKey: string; objectiveKey: string; tipKey: string; flavorKey: string };
   /** 월드 시드 — 같은 미션은 언제나 같은 맵이다 (재현성 = 공략 가능성) */
   seed: number;
   /** 격파 목표 수. 자폭 드론이라 1소티 = 최대 1격파 — 목표 1이 기본이다(4.7) */
@@ -30,6 +32,12 @@ export interface MissionDef {
 export const M2_1: MissionDef = {
   id: 'm2-1',
   titleKey: 'mission.m2.title',
+  brief: {
+    situationKey: 'brief.m2.situation',
+    objectiveKey: 'brief.m2.objective',
+    tipKey: 'brief.m2.tip',
+    flavorKey: 'brief.m2.flavor',
+  },
   seed: WORLD_SEED,
   destroyGoal: 1,
   threats: [

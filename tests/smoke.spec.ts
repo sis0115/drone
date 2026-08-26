@@ -22,6 +22,15 @@ test('부팅 → 링크 접속 → 스크린샷', async ({ page }) => {
   await page.screenshot({ path: 'tests/__screenshots__/t9-loadout.png' });
   await page.locator('.lo-sortie').click();
 
+  // 브리핑 — 03 문서 4장 규격의 다섯 줄이 실제로 뜬다
+  const brief = page.locator('#briefing');
+  await expect(brief).toContainText('강철 사냥');
+  await brief.locator('.br-panel').click(); // 타이핑 스킵
+  await expect(brief).toContainText('트럭 1대 격파');
+  await expect(brief).toContainText('배터리 아끼지 마라');
+  await page.screenshot({ path: 'tests/__screenshots__/demo-briefing.png' });
+  await brief.locator('.br-launch').click();
+
   // 링크 연출(0.6초)이 끝나면 __debug.ready 가 선다.
   await page.waitForFunction(() => window.__debug?.ready === true, null, { timeout: 120_000 });
 
@@ -662,6 +671,8 @@ test('T8c 미션 루프 — 격파하면 디브리핑이 뜨고, 재출격하면
   await panel.locator('.db-btn').click();
   await page.waitForFunction(() => window.__debug.state.screen === 'loadout', null, { timeout: 60_000 });
   await page.locator('.lo-sortie').click();
+  await page.locator('.br-panel').click();
+  await page.locator('.br-launch').click();
   await page.waitForFunction(() => window.__debug.state.screen === 'flight', null, { timeout: 120_000 });
   await page.waitForFunction(() => window.__debug?.ready === true, null, { timeout: 120_000 });
   const fresh = await page.evaluate(() => window.__debug.flight.strike());
@@ -742,9 +753,11 @@ test('T9 작전실 — 어시스트 선택이 비행 모델을 정하고 저장�
   await page.goto('/');
   await page.evaluate(() => localStorage.clear());
   await page.goto('/');
-  // 세미(프로 앵글) 선택 → 출격 → 비행 모델이 프로다
+  // 세미(프로 앵글) 선택 → 출격 → 브리핑 통과 → 비행 모델이 프로다
   await page.locator('[data-assist="semi"]').click();
   await page.locator('.lo-sortie').click();
+  await page.locator('.br-panel').click();
+  await page.locator('.br-launch').click();
   await page.waitForFunction(() => window.__debug?.ready === true, null, { timeout: 120_000 });
   expect(await page.evaluate(() => window.__debug.flight.mode())).toBe('pro');
 
@@ -779,4 +792,48 @@ test('T10 i18n — 언어를 바꾸면 그 자리에서 바뀌고, 재접속해�
   // 되돌리기 — 이후 테스트는 한국어 문구를 본다
   await page.locator('[data-lang="ko"]').click();
   await expect(page.locator('.lo-sortie')).toContainText('출격');
+});
+
+/**
+ * 데모 완주 점검: 브리핑 → 비행(HUD 목표 + 항법 무전) → 격파(확인 무전) — 첫 판의 안내 사슬.
+ */
+test('데모 — HUD 목표와 무전 안내가 첫 판을 이끈다', async ({ page }) => {
+  // 항법 무전(시뮬 3초 = 60여 프레임 ≈ 실시간 60초) + 격파 궤적까지 한 사슬 — 기본 120초로는 모자란다
+  test.setTimeout(300_000);
+  await enterFlight(page);
+  await page.evaluate(() => {
+    window.__debug.flight.setWindCalm();
+    window.__debug.flight.respawn();
+  });
+
+  // HUD 좌하단 목표 토큰
+  await expect(page.locator('#hud .hud-bl')).toContainText('TGT 0/1');
+
+  // 이륙 3초 뒤 항법 무전 — 시뮬 시간 기준이라 프레임을 굴린다
+  await page.evaluate(async () => {
+    const n = window.__debug.frame + 65; // 65×0.05s ≈ 3.2s
+    while (window.__debug.frame < n) await new Promise((r) => requestAnimationFrame(r));
+  });
+  await expect(page.locator('.hud-radio')).toContainText('종대는 남동쪽');
+  await page.screenshot({ path: 'tests/__screenshots__/demo-radio-nav.png' });
+
+  // 격파 → 목표 갱신 + 확인 무전 (정지 화면 위)
+  await page.evaluate(async () => {
+    const t = window.__debug.flight.telemetry();
+    let z = -214;
+    t.pos.set(120, t.pos.y + (2.5 - t.agl), z);
+    t.yaw = 0;
+    const deadline = window.__debug.frame + 60;
+    while (window.__debug.frame < deadline && !window.__debug.flight.crashed()) {
+      z -= 2;
+      t.pos.set(120, t.pos.y, z);
+      t.vel.set(0, 0, -14);
+      await new Promise((r) => requestAnimationFrame(r));
+    }
+    await new Promise((r) => requestAnimationFrame(r));
+  });
+  expect(await page.evaluate(() => window.__debug.flight.crashed())).toBe('자폭 돌입');
+  // 고스트 확인 무전은 디브리핑에 얹힌다 — 정지 화면 2.5초로는 못 읽는다
+  await page.waitForFunction(() => window.__debug.state.screen === 'debrief', null, { timeout: 30_000 });
+  await expect(page.locator('#debrief')).toContainText('잘 가라');
 });

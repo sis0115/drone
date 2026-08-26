@@ -84,3 +84,18 @@ loadout.lang,언어,LANGUAGE
 loadout.video,화질,VIDEO
 video.standard,디지털 HD,DIGITAL HD
 video.analog,아날로그 480p,ANALOG 480P
+brief.speaker,[발신: 바딤 상사],[FROM: SGT. VADIM]
+brief.label.op,■ 작전명:,■ OPERATION:
+brief.label.situation,■ 상황:,■ SITUATION:
+brief.label.objective,■ 임무:,■ MISSION:
+brief.label.tip,■ 조언:,■ ADVICE:
+brief.m2.situation,연방군 트럭 종대가 K-7 도로로 남하 중이다. 표적 구역 상공엔 재밍 돔이 있다.,FEDERATION TRUCK CONVOY MOVING SOUTH ON ROUTE K-7. JAMMER DOME COVERS THE TARGET AREA.
+brief.m2.objective,트럭 1대 격파. 기체째 박아라 — 그게 네 탄두다.,DESTROY ONE TRUCK. RAM IT — THE AIRFRAME IS YOUR WARHEAD.
+brief.m2.tip,참호의 산탄총은 30m 위나 6m 아래로 피해라. 화면이 끓는 건 재밍이다 — 고장이 아니니 밀어붙여라.,DODGE THE SHOTGUN: ABOVE 30M OR UNDER 6M. STATIC MEANS JAMMING — NOT A FAULT. PUSH THROUGH.
+brief.m2.flavor,"""배터리 아끼지 마라. 아낀 배터리로 관 짜는 꼴 본다.""","""DON'T SAVE THE BATTERY. SAVED BATTERIES BUILD COFFINS."""
+brief.launch,▶ 링크 수립,▶ ESTABLISH LINK
+radio.m2.nav,고스트: 종대는 남동쪽 도로에 있다. 수목선을 따라가라.,GHOST: CONVOY IS SOUTHEAST ON THE ROAD. FOLLOW THE TREELINE.
+radio.m2.kill,"고스트: 확인했다. 잘 가라, 고철.","GHOST: CONFIRMED. REST EASY, SCRAP."
+radio.threat.a1,바딤: 산탄총이다! 위로 뽑든가 바닥에 붙어!,VADIM: SHOTGUN! CLIMB OR HUG THE DIRT!
+radio.ao.warn,바딤: 커버리지 끝이다. 돌아와!,VADIM: EDGE OF COVERAGE. TURN BACK!
+hud.objective,TGT {0}/{1},TGT {0}/{1}

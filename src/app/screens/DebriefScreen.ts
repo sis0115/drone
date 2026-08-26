@@ -33,6 +33,9 @@ export class DebriefScreen implements Screen {
           : `<div class="db-line red">${fmt('debrief.cause', t(d.causeKey))}</div>`
       : '';
 
+    // 고스트의 확인 무전 — 완수했을 때만. 프로토타입 v0.7 의 그 대사다 (03 문서).
+    const ghost = d?.cleared ? `<div class="db-line ghost">${t('radio.m2.kill')}</div>` : '';
+
     this.root.innerHTML = d
       ? `<div class="db-panel">` +
         `<div class="db-title">${t(d.titleKey)}</div>` +
@@ -43,6 +46,7 @@ export class DebriefScreen implements Screen {
           ? `<div class="db-line amb">${fmt('debrief.sp', d.spEarned, d.spTotal)}</div>`
           : '') +
         causeLines +
+        ghost +
         `<button class="db-btn">${t('debrief.redeploy')}</button>` +
         `</div>`
       : `<div class="db-panel"><button class="db-btn">${t('debrief.redeploy')}</button></div>`;

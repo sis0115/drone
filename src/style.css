@@ -307,6 +307,7 @@ html, body {
 .db-line { font-size: clamp(11px, 1.6vw, 14px); color: var(--c-text-white); }
 .db-line.red { color: var(--c-accent-red); }
 .db-line.amb { color: var(--c-accent-amber); }
+.db-line.ghost { color: var(--c-text-dim); margin-top: 0.5em; font-style: normal; }
 
 .db-btn {
   margin-top: 0.9em;
@@ -394,3 +395,54 @@ html, body {
 }
 .lo-opt:focus-visible { outline: none; border-color: var(--c-accent-amber); }
 .lo-sortie { align-self: stretch; text-align: center; }
+
+/* ── 미션 브리핑 (03 문서 4장) — 무전 프린터 ── */
+#briefing {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+  background: var(--c-bg-base);
+}
+.br-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1em;
+  width: min(640px, 86vw);
+  padding: clamp(18px, 3.5vh, 30px) clamp(22px, 4vw, 38px);
+  border: 1px solid var(--c-line);
+  background: var(--c-bg-panel);
+}
+.br-body {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: clamp(11px, 1.7vw, 15px);
+  line-height: 1.9;
+  letter-spacing: 0.04em;
+  color: var(--c-text-primary);
+  white-space: pre-wrap;
+  word-break: keep-all;
+  min-height: 12em;
+}
+.br-launch { align-self: stretch; text-align: center; }
+
+/* 무전 1줄 — 하단 중앙, 비프 없이 텍스트만 (03 문서 4장) */
+.hud-radio {
+  position: absolute;
+  left: 50%;
+  bottom: calc(9vh + var(--sab));
+  transform: translateX(-50%);
+  max-width: 82vw;
+  font-family: var(--font-mono);
+  font-size: clamp(11px, 1.8vw, 15px);
+  letter-spacing: 0.06em;
+  color: var(--c-text-primary);
+  text-shadow: 0 0 2px #000, 0 1px 2px #000;
+  opacity: 0;
+  transition: opacity 0.25s;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.hud-radio.show { opacity: 1; }

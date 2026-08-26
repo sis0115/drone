@@ -9,5 +9,8 @@ import type { Page } from '@playwright/test';
 export async function enterFlight(page: Page): Promise<void> {
   await page.goto('/');
   await page.locator('.lo-sortie').click();
+  // 브리핑 — 한 번 탭해 타이핑을 스킵하고 링크 수립
+  await page.locator('.br-panel').click();
+  await page.locator('.br-launch').click();
   await page.waitForFunction(() => window.__debug?.ready === true, null, { timeout: 120_000 });
 }

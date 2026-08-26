@@ -31,11 +31,13 @@ export interface HudState {
   ao: { outside: boolean; secondsLeft: number; distance: number } | null;
   elapsedSec: number;
   build: string;
+  /** 미션 목표 — 격파 수/목표 (T8c). null 이면 표기 없음 */
+  objective: { kills: number; goal: number } | null;
 }
 
 const NS = 'http://www.w3.org/2000/svg';
 
-import { t } from '@/i18n';
+import { fmt, t } from '@/i18n';
 
 export class Hud {
   private readonly root: HTMLElement;
@@ -166,14 +168,41 @@ export class Hud {
       `<span class="dim">${s.speed.toFixed(0)}km/h</span>` +
       (s.targetAltitude !== null ? `<br><span class="amb small">SET ${s.targetAltitude.toFixed(0)}m</span>` : '');
 
-    this.cells.callsign.innerHTML = `<span class="dim">ROOKIE</span>`;
+    this.cells.callsign.innerHTML =
+      `<span class="dim">ROOKIE</span>` +
+      (s.objective
+        ? `<br><span class="${s.objective.kills >= s.objective.goal ? 'amb' : 'wht'}">${fmt(
+            'hud.objective',
+            s.objective.kills,
+            s.objective.goal,
+          )}</span>`
+        : '');
     this.cells.build.innerHTML =
       `<span class="dim">SIG ${(s.signal * 100).toFixed(0)}%</span><br>` +
       `<span class="${s.burst > 0.3 ? 'red' : 'dim'}">${s.burst > 0.3 ? 'DEGRADED' : 'STABLE'}</span><br>` +
       `<span class="dim small">${s.build}</span>`;
   }
 
+  /** 무전 한 줄 — 하단 중앙 3.2초 (03 문서 4장 "화면 하단 1줄" 연출). */
+  radio(text: string): void {
+    let el = this.root.querySelector<HTMLElement>('.hud-radio');
+    if (!el) {
+      el = document.createElement('div');
+      el.className = 'hud-radio';
+      this.root.appendChild(el);
+    }
+    el.textContent = text;
+    el.classList.remove('show');
+    // reflow 로 트랜지션 재시작
+    void el.offsetWidth;
+    el.classList.add('show');
+    window.clearTimeout(this.radioTimer);
+    this.radioTimer = window.setTimeout(() => el?.classList.remove('show'), 3200);
+  }
+  private radioTimer = 0;
+
   dispose(): void {
+    window.clearTimeout(this.radioTimer);
     window.removeEventListener('resize', this.buildReticle);
     this.root.remove();
   }

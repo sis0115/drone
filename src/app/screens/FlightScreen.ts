@@ -23,6 +23,7 @@ import { save } from '@/core/Save';
 import { CAM_MODE_LABEL, THERMAL_UNIFORM, applyCameraMode, nextCamMode } from '@/world/CameraMode';
 import { PadOverlay } from '@/ui/PadOverlay';
 import type { InputFrame } from '@/input/InputSource';
+import { t as tr } from '@/i18n';
 import type { AppContext, Screen } from '../Screen';
 
 /**
@@ -55,6 +56,10 @@ export class FlightScreen implements Screen {
   private mission!: MissionRunner;
   /** crash 후 디브리핑 전환까지의 벽시계 기준점 */
   private crashedAtWall: number | null = null;
+  /** 출격당 1회성 무전 — 반복되는 무전은 잔소리다 */
+  private saidNav = false;
+  private saidThreat = false;
+  private saidAo = false;
   private readonly ao = new AoLimit();
   private aoState: AoState = { outside: false, progress: 0, secondsLeft: 3, distanceToEdge: 1e9, warning: false };
 
@@ -154,6 +159,10 @@ export class FlightScreen implements Screen {
     // 작전 구역 — 이탈하면 벽이 아니라 신호가 막는다 (T8b). 3초에 걸쳐 링크가 무너진다.
     if (!this.crashReason) {
       this.aoState = this.ao.update(t.pos.x, t.pos.z, dt);
+      if (this.aoState.outside && !this.saidAo) {
+        this.saidAo = true;
+        this.hud.radio(tr('radio.ao.warn'));
+      }
       if (this.ao.expired) this.crash('작전 구역 이탈');
     }
 
@@ -215,6 +224,12 @@ export class FlightScreen implements Screen {
       return;
     }
 
+    // 항법 무전 — 이륙 3초 뒤 한 번. 첫 판의 "어디로?"를 없앤다
+    if (!this.saidNav && this.elapsed > 3 && !this.crashReason) {
+      this.saidNav = true;
+      this.hud.radio(tr('radio.m2.nav'));
+    }
+
     this.hud.update({
       fps: time.fps,
       signal: this.signal.quality,
@@ -246,6 +261,7 @@ export class FlightScreen implements Screen {
         : null,
       elapsedSec: this.elapsed,
       build: `${__BUILD_BRANCH__} ${__BUILD_ID__}`,
+      objective: { kills: this.mission.killCount, goal: this.mission.def.destroyGoal },
     });
     // 왜곡 계수는 셰이더가 받은 그 값을 그대로 넘긴다 (07 문서 2.4)
     this.targets?.update(this.world.targets, renderer.camera, t.pos, renderer.params.distort);
@@ -269,7 +285,13 @@ export class FlightScreen implements Screen {
         id: now.id, kind: now.kind, progress: now.progress, distance: now.distance, armed: now.armed,
       });
       // 조준이 걸리면 손으로도 알린다. 폰에서는 이쪽이 더 빨리 읽힌다
-      if (now.kind === 'aim') this.ctx.platform.vibrate([40]);
+      if (now.kind === 'aim') {
+        this.ctx.platform.vibrate([40]);
+        if (!this.saidThreat) {
+          this.saidThreat = true;
+          this.hud.radio(tr('radio.threat.a1'));
+        }
+      }
     } else if (!now && previous) {
       bus.emit('threat:cleared', { id: previous.id });
     }
@@ -362,8 +384,13 @@ export class FlightScreen implements Screen {
     this.ao.reset();
     this.aoState = { outside: false, progress: 0, secondsLeft: 3, distanceToEdge: 1e9, warning: false };
     this.crashedAtWall = null;
+    this.saidNav = false;
+    this.saidThreat = false;
+    this.saidAo = false;
     this.mission.reset();
-    for (const m of Object.values(this.models)) m.reset(this.spawnPoint, Math.PI);
+    // 스폰 방향은 표적 종대 쪽(남동) — π(북쪽)로 뒀더니 첫 판이 등 뒤의 전장을 못 찾았다.
+    // forward = (-sin yaw, -cos yaw) 이므로 목표 벡터 (120,-220) 에 대해 atan2(-x, -z).
+    for (const m of Object.values(this.models)) m.reset(this.spawnPoint, Math.atan2(-120, 220));
     this.ctx.bus.emit('flight:spawned');
   }
 

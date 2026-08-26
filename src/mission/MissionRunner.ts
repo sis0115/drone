@@ -63,6 +63,11 @@ export class MissionRunner {
     return this.result;
   }
 
+  /** HUD 목표 표기용 */
+  get killCount(): number {
+    return this.kills;
+  }
+
   get debrief(): DebriefData | null {
     return this.result;
   }
