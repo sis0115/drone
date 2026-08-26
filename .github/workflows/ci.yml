@@ -17,24 +17,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
-    # 클라우드 세이브 테스트는 진짜 Postgres 를 상대로 돈다.
-    # 낙관적 잠금과 1회성 코드는 DB 원자성에 기대므로 스텁으로는 검증이 안 된다.
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: slfpv
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-    env:
-      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/slfpv
 
     steps:
       - uses: actions/checkout@v4

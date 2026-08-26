@@ -22,9 +22,10 @@
 - **동작하는 프로토타입 v0.7 존재** (`prototype/signal_lost_fpv.html`) — 단일 HTML, 외부 에셋 0
 - **헤드리스 검증 도구 동작** (`tools/`) — 브라우저 없이 Three.js 씬 검증
 - **T1 완료** — Vite + TypeScript 스캐폴딩, 480×270 3버퍼 렌더 파이프 골격, `window.__debug` 훅
-- **배포 연결 완료** — https://drone-azure-rho.vercel.app (`main` = 프로덕션, `develop` = 프리뷰) + CI
-- **클라우드 세이브 구현** — 계정 없는 기기 간 이어하기 (6-1장). 05 문서가 v1.0 이후로 잡았던 항목을 앞당김
-- Playwright 20종 통과 (실제 Postgres 대상 15종 포함)
+- **배포 연결 완료** — https://drone-azure-rho.vercel.app + CI
+  - `/` = **프로토타입 v0.7 데모** (지금 볼 것은 이쪽)
+  - `/app.html` = 코드베이스 스캐폴딩 (T1 결과물 — 아직 빈 화면)
+- Playwright 7종 통과
 - 다음: **T2 (프로토타입 모듈 분해 이식)**
 
 ### 검증 완료된 수치
@@ -67,7 +68,13 @@
 ```bash
 npm install
 npm run dev        # http://localhost:5173 (host 노출 — 폰에서 같은 망으로 접속 가능)
+                   #   /          → 프로토타입 데모
+                   #   /app.html  → 코드베이스 스캐폴딩
 ```
+
+`/` 로 나가는 데모는 `prototype/signal_lost_fpv.html` 을 **가공 없이 복사**한 것이다
+(`tools/sync-demo.js` 가 dev/build 전에 `public/index.html` 로 넣는다).
+원본은 기준선이라 수정 금지이고, 배포본이 원본과 바이트 단위로 같은지는 테스트가 지킨다.
 
 | 명령 | 하는 일 |
 |---|---|
@@ -76,7 +83,7 @@ npm run dev        # http://localhost:5173 (host 노출 — 폰에서 같은 망
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run harness` | 헤드리스 씬 생성 검증 (`tools/harness.js`) |
 | `npm run perf` | 드로우콜/삼각형 실측 — 예산(<120) 초과 시 종료 코드 1 |
-| `npm test` | Playwright (빌드 → preview → 검증 → 스크린샷). `DATABASE_URL` 있으면 클라우드 세이브 포함 |
+| `npm test` | Playwright (빌드 → preview → 검증 → 스크린샷) |
 | `npm run verify` | 위 4종 일괄 — **커밋 전 필수** |
 
 스크린샷은 `tests/__screenshots__/` 에 남는다.
@@ -117,7 +124,7 @@ git push origin develop # → Vercel 프리뷰 URL 자동 생성 → 폰에서 �
 
 | | |
 |---|---|
-| 프로덕션 | https://drone-azure-rho.vercel.app (`main`) |
+| 프로덕션 | https://drone-azure-rho.vercel.app (`main`) — `/` 는 데모, `/app.html` 은 스캐폴딩 |
 | 프리뷰 | `develop` push마다 URL 자동 생성 |
 | 기본 브랜치 | `main` |
 
@@ -142,64 +149,20 @@ HUD 우하단에 `브랜치 커밋해시` 가 찍힌다 (예: `develop a1b2c3d`)
 - 커밋 규칙: `T3: flight models`
 - 세션 간 컨텍스트 유실 방지: `DEVLOG.md` 누적
 
-## 6-1. 클라우드 세이브 / 데이터베이스
+## 6-1. 데이터베이스 — 미도입
 
-**기기 간 이어하기가 구현되어 있다.** 05 문서가 원래 v1.0 이후로 잡았던 항목을 앞당긴 것이다
-(2026-08-25 결정, DEVLOG 참조). 프로토콜·보안 설계는 `docs/02_DEV_SPEC_web.md` 7-1장.
+**서버도 DB 도 없다.** 저장은 localStorage 뿐이고(`src/core/Save.ts`), 05 문서 1장이 규정한
+대로 v1.0까지 이 상태를 유지한다.
 
-### 6-1-1. 설계 요약
+계정 없는 클라우드 세이브(기기 간 이어하기)를 한 번 구현했다가 **걷어냈다** (2026-08-26, 사용자 결정).
+필요해질 때 되살리면 되고, 되살릴 때 읽어야 할 것:
 
-- **계정 없음.** 신원 = 서버가 발급한 기기별 시크릿. 로그인 화면이 없다
-- 다른 기기는 **이어하기 코드**(`7K2M-9QX4` 꼴, 10분, 1회용)로 붙는다.
-  붙어도 원래 기기는 계속 동작한다 (시크릿 회전이 아니라 기기 행 추가)
-- **로컬 저장이 여전히 원본이다.** 서버가 죽어도 게임은 그대로 간다
-- 충돌은 `rev` 낙관적 잠금으로 잡고, 밀려난 쪽은 로컬 백업 키에 남긴다
-
-### 6-1-2. Vercel Storage 연결 (최초 1회, 계정 로그인 필요)
-
-> 이걸 하기 전까지 `/api/*` 는 503 을 낸다. 게임 자체는 로컬 저장으로 정상 동작한다.
-
-1. Vercel → `drone` 프로젝트 → **Storage** 탭 → **Neon**(Postgres) 선택해 생성
-   - Vercel Postgres/KV 는 이제 1st-party 가 아니라 Marketplace 통합이다
-   - **새 Vercel 프로젝트를 만들 필요 없다.** 기존 프로젝트에 붙인다
-2. 연결하면 `DATABASE_URL` 이 자동 주입된다 — 리포에서 설정할 게 없다
-3. ⚠️ Neon 은 **pooled 연결 문자열**(호스트에 `-pooler`)을 써야 한다.
-   서버리스 함수는 인스턴스마다 커넥션을 잡아서 직결로는 금방 고갈된다
-4. 스키마는 첫 API 호출 때 자동 적용된다 (`db/001_init.sql`, 전부 `if not exists`)
-
-### 6-1-3. 로컬 개발
-
-```bash
-cp .env.example .env      # DATABASE_URL 채우기
-npm run dev               # /api/* 가 dev 서버에 함께 마운트된다
-```
-
-`api/` 함수는 로컬 dev/preview 서버에 Vite 플러그인으로 마운트된다
-(`api/_lib/devServer.ts`). Vercel 에서는 플랫폼이 같은 역할을 한다.
-
-`DATABASE_URL` 이 없으면 `/api/*` 가 503 을 내고 클라우드 세이브 테스트는 건너뛴다.
-**단 CI 에서는 DB 가 없으면 테스트가 실패한다** — 조용히 건너뛰면 통과처럼 보이기 때문.
-
-### 6-1-4. 배포 상태 확인
-
-```bash
-curl https://drone-azure-rho.vercel.app/api/health
-```
-`hasDatabaseUrl` 이 false 면 아직 Storage 미연결이고, 이때 `/api/*` 는 **503 `no_database`** 를 낸다
-(500 이 나오면 그건 진짜 고장이다). 배포 함정 3종은 `docs/02_DEV_SPEC_web.md` 7-1장에 정리돼 있다.
-
-### 6-1-5. 확인된 것 / 안 된 것
-
-`npm run verify` 가 실제 Postgres 를 상대로 20종을 돌린다 — 서비스 단위 11종
-(낙관적 잠금, 1회용 코드, 만료, 시도 제한, 크기 상한) + 브라우저 E2E 4종
-(두 기기 이어받기 포함) + 기존 5종.
-
-**아직 실제 Neon 에 붙여 돌려보지는 않았다.** 로컬 Postgres 16 으로만 검증했다.
-연결 후 첫 이어하기를 한 번 해 보는 것이 남은 확인이다.
+- DEVLOG 의 `5f253a8` 항목 — 설계(기기별 시크릿 / 이어하기 코드 / `rev` 낙관적 잠금)와
+  **Vercel 배포에서만 재현되는 함정 3종**이 정리돼 있다
+- 저장이 `Save.ts` 한 파일에 격리돼 있고 `schemaVersion` 이 이미 붙어 있으므로,
+  지금 구조를 미리 바꿔 둘 필요는 없다
 
 ## 7. 우선 확인이 필요한 것
 
-- **Vercel Storage(Neon) 연결** — 붙이기 전까지 `/api/*` 는 503 이고 클라우드 세이브가 꺼져 있다. 절차는 6-1-2장
-- **실제 Neon 대상 이어하기 1회** — 지금까지 로컬 Postgres 로만 검증했다
 - **폰 실기 fps** (프로토타입을 폰에서 열어 HUD 우상단 확인). 45 미만이면 풀 인스턴스 수 → 그림자 해상도 → 덤불 수 순으로 조정
 - **화면 감성 파라미터 확정** — 프로토타입 튜닝 패널에서 프리셋 A/B/C 중 선택 후 미세조정 → JSON 복사 → `src/data/postfx.ts`에 고정

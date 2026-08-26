@@ -219,3 +219,49 @@ GET  /api/profile/pull  405  메서드 가드 정상
 로컬 통과가 배포 동작을 보장하지 못하는 구간이 남아 있다는 뜻 — 배포 후 `/api/health` 확인이 필요하다.
 
 **다음**: Neon 연결(사람) → 실기 이어하기 1회 → T2.
+---
+
+## 2026-08-26 — 클라우드 세이브 제거 · 데모를 사이트 루트로
+
+**결정 (사용자)**: 저장 기능을 빼고, 지난 데모 버전으로 되돌린 뒤 기획–데모 점검부터 한다.
+DB 는 필요해질 때 다시 붙인다.
+
+**제거한 것**
+- `api/` 전체(서버리스 함수 5종 + `_lib`), `db/`, `src/core/CloudSave.ts`, `src/ui/CloudPanel.ts`
+- 클라우드 관련 테스트 3종, `.env.example`, HUD 진입 버튼, `pg`/`@types/pg` 의존성
+- CI 의 postgres 서비스, vite 의 dev-api 플러그인, i18n `ui.cloud.*` 키
+- 02·05·README 의 클라우드 세이브 서술
+
+**복원 지점**: 커밋 **`5f253a8`**. (태그를 만들려 했으나 이 환경의 git 프록시가 태그 push 를 막는다.)
+```
+git checkout 5f253a8 -- api db src/core/CloudSave.ts src/ui/CloudPanel.ts \
+  tests/cloudsave.spec.ts tests/cloudsave.e2e.spec.ts tests/schema-sync.spec.ts
+```
+되살릴 때 반드시 먼저 읽을 것 — **Vercel 배포에서만 재현되는 함정 3종**(로컬은 전부 통과했다):
+1. `package.json` 에 `"type": "module"` 필수 (없으면 출력 `.js` 가 CJS 로 읽혀 문법 오류)
+2. `api/` 안 상대 import 에 `.js` 확장자 필수 (Node ESM 은 확장자 없는 경로를 해석 못 함)
+3. 루트 `tsconfig.json` 에 `"noEmit": true` 금지 (함수 출력이 생성되지 않음).
+   `api/tsconfig.json` 우회는 통하지 않는다 — Vercel 은 루트를 읽는다
+   그리고 함수 시그니처는 Web Handler (`export function POST(request: Request)`).
+
+**남겨 둔 것과 이유**
+- `"type": "module"` + `tools/package.json`(`commonjs`) — 이미 검증된 조합이고 더 올바른 설정이다.
+  되돌리면 나중에 서버를 붙일 때 같은 함정을 다시 밟는다
+- `tsconfig.json` 의 noEmit 경고 주석 — 같은 이유
+
+**데모를 사이트 루트로**
+- `/` = 프로토타입 v0.7 데모, `/app.html` = 코드베이스 스캐폴딩
+- `tools/sync-demo.js` 가 dev/build 전에 `prototype/signal_lost_fpv.html` 을
+  `public/index.html` 로 **가공 없이 복사**한다. public/ 은 Vite 가 손대지 않으므로
+  단일 HTML + CDN 구조가 그대로 보존된다. 원본은 07 문서상 수정 금지라 복사만 한다
+- `tests/demo.spec.ts` 가 배포본과 원본이 **바이트 단위로 같은지** 확인한다 — 사본 드리프트 방지
+- Vite 엔트리를 `index.html` → `app.html` 로 옮겨 rewrite 없이 정적 파일만으로 갈랐다.
+  로컬 preview 와 배포의 경로가 동일하다 (이전 배포 사고의 교훈)
+
+**한계**: 이 컨테이너에서는 헤드리스 크로미움이 프록시를 통과하지 못해 **cdnjs 의 three r128 을 받지 못한다.**
+데모 테스트는 문서 구조·진입 버튼까지만 확인하고, 실제 씬 렌더는 검증하지 못한다.
+**데모 화면 확인은 사람이 폰/PC 브라우저로 해야 한다.**
+
+**검증**: Playwright 7/7, 드로우콜 116(변동 없음), 빌드 정상.
+
+**다음**: 기획 문서 ↔ 데모 점검.

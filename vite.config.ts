@@ -1,7 +1,6 @@
-import { defineConfig, loadEnv } from 'vite';
+import { defineConfig } from 'vite';
 import { fileURLToPath } from 'node:url';
 import { execSync } from 'node:child_process';
-import { devApiPlugin } from './api/_lib/devServer';
 
 /**
  * 빌드 스탬프. 폰에서 프리뷰를 열었을 때 HUD 우하단에 찍혀,
@@ -19,17 +18,8 @@ function buildId(): string {
 }
 
 // 개발 빌드 전용 기능(튜닝 패널 등)은 import.meta.env.DEV 로 분기한다.
-export default defineConfig(({ mode }) => {
-  // .env 의 DATABASE_URL 을 process.env 로 올린다 — dev-api 미들웨어가 읽는다.
-  // Vite 는 VITE_ 접두사만 클라이언트에 노출하므로 DB 문자열이 번들에 들어갈 일은 없다.
-  const env = loadEnv(mode, process.cwd(), '');
-  if (env.DATABASE_URL && !process.env.DATABASE_URL) {
-    process.env.DATABASE_URL = env.DATABASE_URL;
-  }
-
+export default defineConfig(() => {
   return {
-    // 로컬 dev/preview 에서 api/ 함수를 마운트한다. Vercel 에서는 플랫폼이 대신한다.
-    plugins: [devApiPlugin()],
     resolve: {
       alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
     },
@@ -44,6 +34,9 @@ export default defineConfig(({ mode }) => {
       port: 5173,
     },
     build: {
+      // 사이트 루트(`/`)는 프로토타입 데모다 (public/index.html).
+      // 코드베이스 스캐폴딩은 /app.html 로 비켜 둔다 — T2 에서 이식이 끝나면 자리를 바꾼다.
+      rollupOptions: { input: fileURLToPath(new URL('./app.html', import.meta.url)) },
       target: 'es2022',
       sourcemap: true,
       // 저사양 폰 대응: 청크 경고 임계를 낮게 두어 번들 비대화를 조기에 인지한다.

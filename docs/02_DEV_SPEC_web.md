@@ -14,16 +14,15 @@
 | 빌드 | **Vite** |
 | 언어 | **TypeScript** |
 | UI/HUD | DOM + SVG 오버레이 (캔버스 밖 = 선명) |
-| 저장 | localStorage (JSON, `schemaVersion` 필수) — **게임플레이의 원본** |
-| 클라우드 세이브 | Vercel Functions (`api/`) + Postgres. 로컬 저장 위에 얹은 동기화 계층 |
+| 저장 | localStorage (JSON, `schemaVersion` 필수) |
 | 배포 | Vercel 자동 배포 |
 | 테스트 | Playwright(브라우저) + **헤드리스 하네스**(`tools/`, 브라우저 없이 검증) |
 | 네이티브 | Capacitor (v1.0 시점, 필요 시) |
 
-**금지**: React/Vue 등 프레임워크, 물리 엔진 조기 도입, 3D 모델·텍스처 파일 조기 도입.
+**금지**: React/Vue 등 프레임워크, 물리 엔진 조기 도입, 3D 모델·텍스처 파일 조기 도입, 서버 의존.
 
-**서버에 대한 원칙**: `api/` 는 세이브 동기화 전용이다. 게임 로직·물리·판정을 서버로 옮기지 않는다.
-서버가 죽어도 게임은 로컬 저장만으로 완주할 수 있어야 한다.
+**서버에 대한 원칙**: 현재 서버가 없다. 게임은 로컬 저장만으로 완주할 수 있어야 한다.
+나중에 세이브 동기화를 위해 서버를 붙이더라도 게임 로직·물리·판정은 클라이언트에 남긴다.
 
 ## 2. 프로젝트 구조
 
@@ -32,11 +31,6 @@ signal-lost-fpv/
 ├── docs/                    # 기획 문서 (코드보다 우선)
 ├── prototype/               # v0.7 단일 파일 (참조용, 수정 금지)
 ├── tools/                   # 헤드리스 검증 하네스
-├── api/                     # Vercel 서버리스 함수 (클라우드 세이브)
-│   ├── _lib/        db / crypto / http / service / devServer  ← `_` 시작은 라우트가 아님
-│   ├── profile/     create / pull / push
-│   └── link/        create / claim
-├── db/                      # SQL 마이그레이션
 ├── src/
 │   ├── main.ts
 │   ├── core/        GameState / EventBus / Save / Time
@@ -150,43 +144,12 @@ FOV 118° / 배럴 왜곡 0.26 (오버레이 좌표에 역변환 동일 적용 �
 - **v0.5**: 타격 편대(StrikePackage), 미션 5종
 - **v1.0**: 9미션 3차수, 4개국어, Capacitor 검토
 
-## 7-1. 클라우드 세이브 (v0.2에서 선반영)
-
-05 문서는 원래 v1.0까지 로컬 JSON만 쓰기로 했으나, **기기 간 이어하기를 먼저 붙이기로 결정**했다
-(2026-08-25, 사용자 결정. DEVLOG 참조).
-
-- **계정 없음.** 신원은 서버가 발급한 **기기별 시크릿** 하나뿐이다. 로그인 화면이 없다
-  (04 문서 금지 목록상 OAuth 버튼은 톤에 맞지 않는다)
-- 다른 기기는 **이어하기 코드**(8자, 10분, 1회용)로 같은 프로필에 붙는다.
-  붙을 때 시크릿을 회전시키지 않고 **기기 행을 추가**하므로 원래 기기가 튕기지 않는다
-- 시크릿·코드는 **sha256 으로만 저장**한다. 조회가 해시 기본키라 평문 비교가 없다
-- 동시 수정은 `rev` **낙관적 잠금**으로 잡는다. 충돌 시 진행도가 큰 쪽을 남기고
-  밀려난 쪽은 로컬 백업 키에 보관한다 (조용히 버리지 않는다)
-### 배포 함정 — 전부 실제로 밟은 것들
-
-`api/` 함수가 배포에서만 `FUNCTION_INVOCATION_FAILED` 로 죽는 조합이 세 가지 있었다.
-**로컬에서는 전부 정상이었다.** 셋 다 부팅 단계 실패라 로그에 스택도 남지 않는다.
-
-1. **`package.json` 에 `"type": "module"` 필수.** tsconfig 가 `module: ESNext` 로 ESM 을 뱉는데
-   이게 없으면 Node 가 출력된 `.js` 를 CommonJS 로 읽고 문법 오류를 낸다.
-   → `tools/*.js` 는 CJS 라서 `tools/package.json` 에 `"type": "commonjs"` 를 두어 그 디렉터리만 되돌린다
-2. **`api/` 안의 상대 import 에 `.js` 확장자 필수.** `moduleResolution: bundler` 는 확장자 없는
-   import 를 그대로 두는데 Node ESM 은 해석하지 못한다. TS 가 `./db.js` → `db.ts` 를 매핑하므로
-   소스 파일명은 그대로 두면 된다
-3. **루트 `tsconfig.json` 에 `"noEmit": true` 를 두지 말 것.** Vercel 이 이 설정으로 `api/*.ts` 를
-   컴파일하는데 출력이 생성되지 않는다. 타입 체크는 CLI 플래그(`tsc --noEmit`)로 한다.
-   `api/tsconfig.json` 을 따로 두는 방법은 **통하지 않는다** — Vercel 은 루트 설정을 읽는다
-
-또한 함수 시그니처는 **Web Handler** 다 (`export function POST(request: Request): Response`).
-레거시 `(req, res)` 기본 export 는 부팅 단계에서 실패한다.
-
-진단 순서: `api/health.ts`(무의존)가 살아 있는지 먼저 본다. 그것도 죽으면 위 1·3번,
-health 는 살고 라우트만 죽으면 2번이다.
-
-- 서버리스 풀은 `max: 1` 이다. **트랜잭션 콜백 안에서 `db().query()` 를 부르면 자기 자신을 기다리며 멈춘다** —
-  반드시 넘겨받은 client 로만 질의할 것 (실제로 이 버그를 밟았다)
-
 ## 8. 열려 있는 결정
+
+> 서버 함수(`api/`)와 클라우드 세이브는 한 번 구현했다가 **걷어냈다** (2026-08-26, 사용자 결정).
+> 다시 붙일 때는 DEVLOG 의 `5f253a8` 기록을 먼저 읽을 것 — Vercel 배포에서만 재현되는
+> 함정 3종(`type: module` / 상대 import 확장자 / 루트 tsconfig 의 `noEmit`)이 정리돼 있다.
+
 
 - 화면 감성 파라미터 최종값 (프로토타입 튜닝 패널에서 확정 후 `src/data/`에 고정)
 - 실사 텍스처(CC0) 도입 시점 — 재미 검증 이후
