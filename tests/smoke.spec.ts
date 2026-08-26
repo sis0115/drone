@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { enterFlight } from './enterFlight';
 import { BUDGET } from '../src/data/render';
 
 // 사이트 루트(`/`) = 코드베이스. 프로토타입 기준선은 /prototype.html.
@@ -16,8 +17,13 @@ test('부팅 → 링크 접속 → 스크린샷', async ({ page }) => {
 
   await page.goto('/');
 
-  // 부트 연출(0.6초)이 끝나면 __debug.ready 가 선다.
-  await page.waitForFunction(() => window.__debug?.ready === true, null, { timeout: 10_000 });
+  // T9 이후 첫 화면은 작전실이다 — 출격 버튼이 있어야 게임에 들어갈 수 있다
+  await expect(page.locator('#loadout .lo-sortie')).toBeVisible();
+  await page.screenshot({ path: 'tests/__screenshots__/t9-loadout.png' });
+  await page.locator('.lo-sortie').click();
+
+  // 링크 연출(0.6초)이 끝나면 __debug.ready 가 선다.
+  await page.waitForFunction(() => window.__debug?.ready === true, null, { timeout: 120_000 });
 
   const state = await page.evaluate(() => window.__debug.state);
   expect(state.screen).toBe('flight');
@@ -29,8 +35,7 @@ test('부팅 → 링크 접속 → 스크린샷', async ({ page }) => {
 });
 
 test('T2 씬이 실제로 그려진다 — 드로우콜·삼각형 예산', async ({ page }) => {
-  await page.goto('/');
-  await page.waitForFunction(() => window.__debug?.ready === true, null, { timeout: 30_000 });
+  await enterFlight(page);
   // 씬 패스가 최소 한 번 돌 때까지
   await page.waitForFunction(() => window.__debug.render.calls > 0, null, { timeout: 30_000 });
 
@@ -44,8 +49,7 @@ test('T2 씬이 실제로 그려진다 — 드로우콜·삼각형 예산', asyn
 });
 
 test('T3 비행이 실제로 배선되어 있다 — 입력이 기체를 움직인다', async ({ page }) => {
-  await page.goto('/');
-  await page.waitForFunction(() => window.__debug?.ready === true, null, { timeout: 60_000 });
+  await enterFlight(page);
 
   // 바람을 끄고 재현 가능한 조건으로 만든다.
   await page.evaluate(() => {
@@ -78,8 +82,7 @@ test('T3 비행이 실제로 배선되어 있다 — 입력이 기체를 움직�
 });
 
 test('T4 가상 패드가 실제로 기체를 움직인다', async ({ page }) => {
-  await page.goto('/');
-  await page.waitForFunction(() => window.__debug?.ready === true, null, { timeout: 60_000 });
+  await enterFlight(page);
   await page.evaluate(() => {
     window.__debug.flight.setWindCalm();
     window.__debug.flight.respawn();
@@ -116,8 +119,7 @@ test('T4 가상 패드가 실제로 기체를 움직인다', async ({ page }) =>
 });
 
 test('스틱을 놓으면 입력이 중립으로 돌아간다', async ({ page }) => {
-  await page.goto('/');
-  await page.waitForFunction(() => window.__debug?.ready === true, null, { timeout: 60_000 });
+  await enterFlight(page);
 
   const box = (await page.locator('.stick[data-side="right"]').boundingBox())!;
   const cx = box.x + box.width / 2;
@@ -135,8 +137,7 @@ test('스틱을 놓으면 입력이 중립으로 돌아간다', async ({ page })
 });
 
 test('비행 모드 전환이 기체를 순간이동시키지 않는다', async ({ page }) => {
-  await page.goto('/');
-  await page.waitForFunction(() => window.__debug?.ready === true, null, { timeout: 60_000 });
+  await enterFlight(page);
 
   const result = await page.evaluate(() => {
     window.__debug.flight.setWindCalm();
@@ -153,8 +154,7 @@ test('비행 모드 전환이 기체를 순간이동시키지 않는다', async 
 });
 
 test('T5 표적 오버레이 — 70m 밖은 녹색 지시, 안쪽은 황색 락온', async ({ page }) => {
-  await page.goto('/');
-  await page.waitForFunction(() => window.__debug?.ready === true, null, { timeout: 60_000 });
+  await enterFlight(page);
   await page.evaluate(() => {
     window.__debug.flight.setWindCalm();
     window.__debug.flight.respawn();
@@ -192,8 +192,7 @@ test('T5 표적 오버레이 — 70m 밖은 녹색 지시, 안쪽은 황색 락�
 });
 
 test('T5 HUD — 06 문서 규격대로 코너에 흩어진다', async ({ page }) => {
-  await page.goto('/');
-  await page.waitForFunction(() => window.__debug?.ready === true, null, { timeout: 60_000 });
+  await enterFlight(page);
 
   // 점선 십자·수평 가이드가 SVG 로 그려진다 (06 문서 원칙 ①)
   const dashed = await page.locator('.hud-reticle line[stroke-dasharray]').count();
@@ -222,8 +221,7 @@ test('T5 HUD — 06 문서 규격대로 코너에 흩어진다', async ({ page }
 });
 
 test('__debug 훅 규격 — 좌표·속도·fps·렌더 정보 노출', async ({ page }) => {
-  await page.goto('/');
-  await page.waitForFunction(() => window.__debug?.ready === true, null, { timeout: 10_000 });
+  await enterFlight(page);
 
   // 이 컨테이너는 소프트웨어 렌더라 1fps 미만이 나온다. fps 값이 아니라
   // **프레임이 진행하는지**로 판정한다 (fps 는 0.5초 창 평균이라 0 으로 찍힐 수 있다).
@@ -244,8 +242,7 @@ test('__debug 훅 규격 — 좌표·속도·fps·렌더 정보 노출', async (
 });
 
 test('빌드 스탬프가 화면과 __debug 양쪽에 찍힌다', async ({ page }) => {
-  await page.goto('/');
-  await page.waitForFunction(() => window.__debug?.ready === true, null, { timeout: 10_000 });
+  await enterFlight(page);
 
   const build = await page.evaluate(() => window.__debug.build);
   // define 주입이 실패하면 문자열이 통째로 비거나 'dev' 로 떨어진다.
@@ -257,8 +254,7 @@ test('빌드 스탬프가 화면과 __debug 양쪽에 찍힌다', async ({ page 
 });
 
 test('스크립트 입력이 사람 입력과 같은 자리에 꽂힌다', async ({ page }) => {
-  await page.goto('/');
-  await page.waitForFunction(() => window.__debug?.ready === true, null, { timeout: 10_000 });
+  await enterFlight(page);
 
   await page.evaluate(() => {
     window.__debug.setInput(() => ({ pitch: 1, yaw: -0.5 }));
@@ -279,8 +275,7 @@ test('스크립트 입력이 사람 입력과 같은 자리에 꽂힌다', async
  * 엔진부가 백열로 뜬다. 스크린샷 3장은 **눈으로 확인해야 한다** (CLAUDE.md 검증).
  */
 test('T6 카메라 모드 — BW → COLOR → THRM 순환과 스크린샷 3장', async ({ page }) => {
-  await page.goto('/');
-  await page.waitForFunction(() => window.__debug?.ready === true, null, { timeout: 60_000 });
+  await enterFlight(page);
   await page.evaluate(() => {
     window.__debug.flight.setWindCalm();
     window.__debug.flight.respawn();
@@ -323,8 +318,7 @@ test('T6 카메라 모드 — BW → COLOR → THRM 순환과 스크린샷 3장'
  * 그 계약이 **실제 화면까지 배선되어 있는지**를 본다.
  */
 test('T7 위협 — 조준 예고가 화면에 먼저 뜨고, 그 뒤에 격추된다', async ({ page }) => {
-  await page.goto('/');
-  await page.waitForFunction(() => window.__debug?.ready === true, null, { timeout: 60_000 });
+  await enterFlight(page);
   await page.evaluate(() => {
     window.__debug.flight.setWindCalm();
     window.__debug.flight.respawn();
@@ -401,8 +395,7 @@ test('T7 위협 — 조준 예고가 화면에 먼저 뜨고, 그 뒤에 격추�
 });
 
 test('T7 위협 — B1 재밍 돔이 실제로 신호를 깎는다', async ({ page }) => {
-  await page.goto('/');
-  await page.waitForFunction(() => window.__debug?.ready === true, null, { timeout: 60_000 });
+  await enterFlight(page);
 
   const settle = async (x: number, z: number) => {
     await page.evaluate(
@@ -446,8 +439,7 @@ test('T7 위협 — B1 재밍 돔이 실제로 신호를 깎는다', async ({ pa
  * "TRUCKTRUCKTRUCK 222M" 로 읽혔다. 고정 오프셋으로 라벨을 찍은 탓이다.
  */
 test('표적·위협 라벨이 서로 겹치지 않는다', async ({ page }) => {
-  await page.goto('/');
-  await page.waitForFunction(() => window.__debug?.ready === true, null, { timeout: 60_000 });
+  await enterFlight(page);
   await page.evaluate(async () => {
     window.__debug.flight.setWindCalm();
     window.__debug.flight.respawn();
@@ -494,8 +486,7 @@ test('표적·위협 라벨이 서로 겹치지 않는다', async ({ page }) => 
  * **화면이 그냥 찌그러지지 않도록** 마지막 방어선이 있어야 한다.
  */
 test('세로로 들면 가로 안내가 뜨고, 가로에서는 사라진다', async ({ page }) => {
-  await page.goto('/');
-  await page.waitForFunction(() => window.__debug?.ready === true, null, { timeout: 60_000 });
+  await enterFlight(page);
 
   const notice = page.locator('#rotate-notice');
   await expect(notice, '가로인데 안내가 떠 있다 — 화면을 가린다').toBeHidden();
@@ -514,8 +505,7 @@ test('세로로 들면 가로 안내가 뜨고, 가로에서는 사라진다', a
  * 여기서는 그 전체 사슬을 브라우저에서 본다 — 돌입 → 기폭 → 표적 전소 → TGT DOWN.
  */
 test('T8a 자폭 돌입 — 트럭에 박으면 격파되고 TGT DOWN 이 뜬다', async ({ page }) => {
-  await page.goto('/');
-  await page.waitForFunction(() => window.__debug?.ready === true, null, { timeout: 60_000 });
+  await enterFlight(page);
   await page.evaluate(() => {
     window.__debug.flight.setWindCalm();
     window.__debug.flight.respawn();
@@ -575,8 +565,7 @@ test('T8a 자폭 돌입 — 트럭에 박으면 격파되고 TGT DOWN 이 뜬다
  * 3초 뒤 링크가 끊긴다.
  */
 test('T8b 작전 구역 — 이탈하면 경고 → 신호 붕괴 → 3초 뒤 링크 상실', async ({ page }) => {
-  await page.goto('/');
-  await page.waitForFunction(() => window.__debug?.ready === true, null, { timeout: 60_000 });
+  await enterFlight(page);
   await page.evaluate(() => {
     window.__debug.flight.setWindCalm();
     window.__debug.flight.respawn();
@@ -614,8 +603,7 @@ test('T8b 작전 구역 — 이탈하면 경고 → 신호 붕괴 → 3초 뒤 �
 });
 
 test('T8b 작전 구역 — 경계 근처에서 맵 끝이 화면에 보이지 않는다', async ({ page }) => {
-  await page.goto('/');
-  await page.waitForFunction(() => window.__debug?.ready === true, null, { timeout: 60_000 });
+  await enterFlight(page);
   // 경계 바로 안(470, 0)에서 바깥(+x)을 본다 — 스커트가 없으면 지형 끝(±800)과
   // 그 너머 허공이 화면 절반을 차지하던 시점이다 (sweep-10 의 재현).
   await page.evaluate(async () => {
@@ -641,8 +629,7 @@ test('T8b 작전 구역 — 경계 근처에서 맵 끝이 화면에 보이지 �
  * 재출격 → 링크 재수립 → 새 출격(월드 리셋).
  */
 test('T8c 미션 루프 — 격파하면 디브리핑이 뜨고, 재출격하면 처음부터다', async ({ page }) => {
-  await page.goto('/');
-  await page.waitForFunction(() => window.__debug?.ready === true, null, { timeout: 60_000 });
+  await enterFlight(page);
   await page.evaluate(() => {
     window.__debug.flight.setWindCalm();
     window.__debug.flight.respawn();
@@ -671,18 +658,19 @@ test('T8c 미션 루프 — 격파하면 디브리핑이 뜨고, 재출격하면
   await expect(panel).toContainText('격파 1/1');
   await page.screenshot({ path: 'tests/__screenshots__/t8c-debrief-win.png' });
 
-  // 재출격 → 링크 재수립 → 새 출격. 월드가 새로 지어져 표적 3대가 돌아온다
+  // 재출격 → 작전실(T9) → 출격 → 링크 재수립 → 새 출격. 월드가 새로 지어진다
   await panel.locator('.db-btn').click();
-  await page.waitForFunction(() => window.__debug.state.screen === 'flight', null, { timeout: 60_000 });
-  await page.waitForFunction(() => window.__debug?.ready === true, null, { timeout: 60_000 });
+  await page.waitForFunction(() => window.__debug.state.screen === 'loadout', null, { timeout: 60_000 });
+  await page.locator('.lo-sortie').click();
+  await page.waitForFunction(() => window.__debug.state.screen === 'flight', null, { timeout: 120_000 });
+  await page.waitForFunction(() => window.__debug?.ready === true, null, { timeout: 120_000 });
   const fresh = await page.evaluate(() => window.__debug.flight.strike());
   expect(fresh.struck, '재출격인데 이전 격파 상태가 남아 있다').toBe(false);
   expect(fresh.targetsAlive, '재출격인데 표적이 복원되지 않았다').toBe(3);
 });
 
 test('T8c 미션 루프 — 위협에 격추되면 원인 1줄과 권고가 나온다 (GDD 4.5 규칙 4)', async ({ page }) => {
-  await page.goto('/');
-  await page.waitForFunction(() => window.__debug?.ready === true, null, { timeout: 60_000 });
+  await enterFlight(page);
   await page.evaluate(() => {
     window.__debug.flight.setWindCalm();
     window.__debug.flight.respawn();
@@ -708,4 +696,59 @@ test('T8c 미션 루프 — 위협에 격추되면 원인 1줄과 권고가 나�
   await expect(panel).toContainText('접근 고도');
   await expect(panel).toContainText('권고');
   await page.screenshot({ path: 'tests/__screenshots__/t8c-debrief-loss.png' });
+});
+
+/**
+ * T9 완료 조건: 재접속 시 SP·재고 유지.
+ * 격파 → 디브리핑에서 SP 지급 → **페이지를 완전히 새로 연다** → 작전실에 잔액이 남아 있다.
+ */
+test('T9 경제 — 격파 SP 가 지급되고 재접속해도 유지된다', async ({ page }) => {
+  await page.goto('/');
+  // 이전 테스트의 저장이 남지 않게 깨끗한 프로필에서 시작
+  await page.evaluate(() => localStorage.clear());
+  await enterFlight(page);
+  await page.evaluate(() => {
+    window.__debug.flight.setWindCalm();
+    window.__debug.flight.respawn();
+  });
+
+  // 격파 (압축 궤적)
+  await page.evaluate(async () => {
+    const t = window.__debug.flight.telemetry();
+    let z = -214;
+    t.pos.set(120, t.pos.y + (2.5 - t.agl), z);
+    t.yaw = 0;
+    const deadline = window.__debug.frame + 60;
+    while (window.__debug.frame < deadline && !window.__debug.flight.crashed()) {
+      z -= 2;
+      t.pos.set(120, t.pos.y, z);
+      t.vel.set(0, 0, -14);
+      await new Promise((r) => requestAnimationFrame(r));
+    }
+  });
+  expect(await page.evaluate(() => window.__debug.flight.crashed())).toBe('자폭 돌입');
+
+  // 디브리핑: 정산 줄 — 트럭 40 SP
+  await page.waitForFunction(() => window.__debug.state.screen === 'debrief', null, { timeout: 30_000 });
+  await expect(page.locator('#debrief')).toContainText('+40 SP');
+  await page.screenshot({ path: 'tests/__screenshots__/t9-debrief-sp.png' });
+
+  // 재접속 — 완전히 새로 로드해도 작전실 잔액이 남아 있다 (05 문서: 저장 시점 = 디브리핑 확정)
+  await page.goto('/');
+  await expect(page.locator('#loadout .lo-sp')).toContainText('SP 40');
+});
+
+test('T9 작전실 — 어시스트 선택이 비행 모델을 정하고 저장된다', async ({ page }) => {
+  await page.goto('/');
+  await page.evaluate(() => localStorage.clear());
+  await page.goto('/');
+  // 세미(프로 앵글) 선택 → 출격 → 비행 모델이 프로다
+  await page.locator('[data-assist="semi"]').click();
+  await page.locator('.lo-sortie').click();
+  await page.waitForFunction(() => window.__debug?.ready === true, null, { timeout: 120_000 });
+  expect(await page.evaluate(() => window.__debug.flight.mode())).toBe('pro');
+
+  // 재접속해도 선택이 남아 있다 (저장 시점 = 설정 변경)
+  await page.goto('/');
+  await expect(page.locator('[data-assist="semi"]')).toHaveClass(/on/);
 });

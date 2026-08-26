@@ -62,20 +62,18 @@ function migrate(raw: PlayerProfile): PlayerProfile {
   return profile;
 }
 
-function storage(): Storage | null {
-  try {
-    return globalThis.localStorage ?? null;
-  } catch {
-    // 사생활 보호 모드 등에서 접근 자체가 던진다.
-    return null;
-  }
-}
+import { platform } from '@/platform';
 
+/**
+ * 저장 통로는 `platform.storage` 하나다 (CLAUDE.md 규칙 10).
+ * T1 구현이 `localStorage` 를 직접 만졌다 — platform 계층(구조화)보다 먼저 쓰인
+ * 코드라 규칙 위반이 숨어 있었고, T9 에서 통로를 좁혔다. 모바일 이식 때
+ * Preferences 로 갈아끼우면 이 파일은 한 줄도 안 바뀐다.
+ */
 export function load(): PlayerProfile {
-  const store = storage();
-  if (!store) return defaultProfile();
+  const store = platform().storage;
   for (const key of [KEY, BACKUP_KEY]) {
-    const text = store.getItem(key);
+    const text = store.get(key);
     if (!text) continue;
     try {
       return migrate(JSON.parse(text) as PlayerProfile);
@@ -87,21 +85,14 @@ export function load(): PlayerProfile {
 }
 
 export function save(profile: PlayerProfile): boolean {
-  const store = storage();
-  if (!store) return false;
-  try {
-    const previous = store.getItem(KEY);
-    if (previous) store.setItem(BACKUP_KEY, previous);
-    store.setItem(KEY, JSON.stringify(profile));
-    return true;
-  } catch {
-    return false;
-  }
+  const store = platform().storage;
+  const previous = store.get(KEY);
+  if (previous) store.set(BACKUP_KEY, previous);
+  return store.set(KEY, JSON.stringify(profile));
 }
 
 export function wipe(): void {
-  const store = storage();
-  if (!store) return;
-  store.removeItem(KEY);
-  store.removeItem(BACKUP_KEY);
+  const store = platform().storage;
+  store.remove(KEY);
+  store.remove(BACKUP_KEY);
 }

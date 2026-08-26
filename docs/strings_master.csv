@@ -71,3 +71,12 @@ cause.structure,구조물 충돌,STRUCTURE IMPACT
 cause.battery,배터리 소진,BATTERY DEPLETED
 cause.strike,자폭 돌입,SELF-DESTRUCT RUN
 cause.ao,작전 구역 이탈,LEFT AO COVERAGE
+loadout.sortie,▶ 출격,▶ SORTIE
+loadout.sp,SP {0},SP {0}
+loadout.stats,전과 {0} · 손실 {1} · 체공 {2}분,KILLS {0} · LOST {1} · {2}MIN
+loadout.assist,어시스트,ASSIST
+loadout.stick,스틱 모드,STICK MODE
+assist.full,풀 어시스트,FULL ASSIST
+assist.semi,세미 (앵글),SEMI / ANGLE
+assist.acro,아크로 (레이트),ACRO / RATE
+debrief.sp,+{0} SP — 잔액 {1},+{0} SP — TOTAL {1}

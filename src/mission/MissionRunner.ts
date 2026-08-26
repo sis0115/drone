@@ -1,4 +1,5 @@
 import type { MissionDef } from '@/data/missions';
+import { SP_VALUE, TIER_MULTIPLIER } from '@/data/economy';
 import type { CrashReason } from '@/drone/FlightModel';
 import type { DebriefData, ThreatCauseDetail } from '@/core/GameState';
 
@@ -44,6 +45,9 @@ export class MissionRunner {
    * 성공이란 "죽기 전에 목표를 채웠는가"다.
    */
   finish(reason: CrashReason, flightSec: number): DebriefData {
+    // SP 정산 (05 문서 4.1/4.3.2): 격파 × 표적 가치 × 차수 배율.
+    // 확인(BDA) 2배와 도전 보너스는 v0.3 — 수식의 자리만 지금 세운다.
+    const spEarned = Math.round(this.kills * SP_VALUE.truck * TIER_MULTIPLIER[0]);
     this.result = {
       missionId: this.def.id,
       titleKey: this.def.titleKey,
@@ -53,6 +57,8 @@ export class MissionRunner {
       flightSec: Math.round(flightSec),
       causeKey: CAUSE_KEY[reason],
       threat: reason === '피격' ? this.threatDetail : null,
+      spEarned,
+      spTotal: 0, // 지급 주체(FlightScreen)가 프로필 반영 후 채운다
     };
     return this.result;
   }

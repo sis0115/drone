@@ -39,6 +39,9 @@ export class DebriefScreen implements Screen {
         `<div class="db-result ${d.cleared ? 'ok' : 'bad'}">${t(d.cleared ? 'debrief.win' : 'debrief.loss')}</div>` +
         `<div class="db-line">${fmt('debrief.kills', d.kills, d.goal)}</div>` +
         `<div class="db-line">${fmt('debrief.time', d.flightSec)}</div>` +
+        (d.spEarned > 0
+          ? `<div class="db-line amb">${fmt('debrief.sp', d.spEarned, d.spTotal)}</div>`
+          : '') +
         causeLines +
         `<button class="db-btn">${t('debrief.redeploy')}</button>` +
         `</div>`
@@ -52,8 +55,8 @@ export class DebriefScreen implements Screen {
   }
 
   private redeploy(): void {
-    // 링크 재수립 연출부터 — 재출격도 하나의 접속이다
-    this.ctx.go('link');
+    // 작전실로 — 조종 방식을 바꾸거나 전적을 확인하고 다시 나간다 (T9)
+    this.ctx.go('loadout');
   }
 
   update(): void {

@@ -1,6 +1,7 @@
 import { App } from '@/app/App';
 import { LinkScreen } from '@/app/screens/LinkScreen';
 import { DebriefScreen } from '@/app/screens/DebriefScreen';
+import { LoadoutScreen } from '@/app/screens/LoadoutScreen';
 import { FlightScreen } from '@/app/screens/FlightScreen';
 import { installDebug } from '@/debug';
 import './style.css';
@@ -15,6 +16,6 @@ const overlay = document.getElementById('overlay') as HTMLElement;
 const app = new App(canvas, overlay);
 const flight = new FlightScreen();
 
-app.register(new LinkScreen()).register(flight).register(new DebriefScreen());
+app.register(new LinkScreen()).register(flight).register(new DebriefScreen()).register(new LoadoutScreen());
 installDebug(app, flight);
-app.start('link');
+app.start('loadout');

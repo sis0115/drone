@@ -19,6 +19,7 @@ import { M2_1 } from '@/data/missions';
 import { destroyTarget, updateTargets } from '@/world/Targets';
 import { findImpact } from '@/mission/Strike';
 import { AoLimit, type AoState } from '@/mission/AoLimit';
+import { save } from '@/core/Save';
 import { CAM_MODE_LABEL, THERMAL_UNIFORM, applyCameraMode, nextCamMode } from '@/world/CameraMode';
 import { PadOverlay } from '@/ui/PadOverlay';
 import type { InputFrame } from '@/input/InputSource';
@@ -78,10 +79,13 @@ export class FlightScreen implements Screen {
       wind: this.wind,
       onCrash: (reason) => this.crash(reason),
     };
+    // 어시스트가 비행 모델을 정한다 (GDD 7장): full=아케이드 / semi=프로 앵글 / acro=프로 레이트
+    const assist = (ctx.state.profile?.settings.assist ?? 'full') as 'full' | 'semi' | 'acro';
     this.models = {
       arcade: new ArcadeFlight(flightCtx),
-      pro: new ProFlight(flightCtx),
+      pro: new ProFlight(flightCtx, assist === 'acro' ? 'acro' : 'semi'),
     };
+    ctx.state.flightMode = assist === 'full' ? 'arcade' : 'pro';
     this.flight = this.models[ctx.state.flightMode];
 
     // 위협 배치는 미션 정의가 갖는다 (T8c) — 여기서는 감각 입력을 주고 결과를 받을 뿐이다.
@@ -319,6 +323,25 @@ export class FlightScreen implements Screen {
     this.ctx.bus.emit('flight:crashed', { reason });
     // 출격 종료 확정 — 자폭 드론이라 모든 출격은 손실로 끝난다 (T8c)
     const debrief = this.mission.finish(reason, this.elapsed);
+    // SP 지급 + 전적 + 저장 — 저장 시점은 "디브리핑 확정"이다 (05 문서 1장)
+    const profile = this.ctx.state.profile;
+    if (profile) {
+      profile.sp += debrief.spEarned;
+      profile.stats.totalKills += debrief.kills;
+      profile.stats.framesLost += 1;
+      profile.stats.flightTimeSec += debrief.flightSec;
+      if (debrief.cleared) {
+        const entry = profile.campaign[debrief.missionId] ?? { stars: 0, cleared: false };
+        entry.cleared = true;
+        entry.stars = Math.max(entry.stars, 1); // ★2·★3 조건은 v0.3
+        profile.campaign[debrief.missionId] = entry;
+      }
+      debrief.spTotal = profile.sp;
+      save(profile);
+      if (debrief.spEarned > 0) {
+        this.ctx.bus.emit('sp:changed', { sp: profile.sp, delta: debrief.spEarned });
+      }
+    }
     this.ctx.state.debrief = debrief;
     this.ctx.bus.emit('mission:ended', { missionId: debrief.missionId, cleared: debrief.cleared });
   }

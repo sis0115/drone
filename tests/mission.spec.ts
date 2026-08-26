@@ -24,6 +24,14 @@ test('자폭 돌입으로 목표를 채우면 완수다 — 기체 손실은 성
   expect(d.kills).toBe(1);
   expect(d.goal).toBe(M2_1.destroyGoal);
   expect(d.flightSec).toBe(42);
+  // SP 정산 (05 문서 4.1): 군용 트럭 40 × 1차수 배율 1.0
+  expect(d.spEarned).toBe(40);
+});
+
+test('격파가 없으면 SP 도 없다 — 참가상 금지', () => {
+  const runner = new MissionRunner(M2_1);
+  const d = runner.finish('지면 충돌', 30);
+  expect(d.spEarned).toBe(0);
 });
 
 test('목표 미달로 죽으면 실패 — 원인 키가 CSV 에 실제로 있다', () => {

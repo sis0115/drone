@@ -1,4 +1,5 @@
 import { test } from '@playwright/test';
+import { enterFlight } from './enterFlight';
 
 /**
  * 점검용 스크린샷 스윕 — `npm run shots`. 기본 테스트 실행에서는 제외된다.
@@ -43,18 +44,17 @@ async function park(
 }
 
 async function boot(page: import('@playwright/test').Page): Promise<void> {
-  await page.goto('/');
-  await page.waitForFunction(() => window.__debug?.ready === true, null, { timeout: 60_000 });
+  await enterFlight(page);
   await page.evaluate(() => {
     window.__debug.flight.setWindCalm();
     window.__debug.flight.respawn();
   });
 }
 
-test('링크 접속 화면', async ({ page }) => {
+test('작전실 화면', async ({ page }) => {
   await page.goto('/');
-  // 부트 게이트가 끝나기 전에 잡는다 — 이 화면은 0.6초만 산다
-  await page.screenshot({ path: `${DIR}/sweep-01-link.png` });
+  await page.locator('.lo-sortie').waitFor();
+  await page.screenshot({ path: `${DIR}/sweep-01-loadout.png` });
 });
 
 test('이륙 직후 — 기본 상태', async ({ page }) => {

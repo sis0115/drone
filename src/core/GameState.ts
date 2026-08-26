@@ -36,6 +36,10 @@ export interface DebriefData {
   /** 손실 원인 키 (`cause.*`). 위협 격추면 threat 상세가 우선한다 */
   causeKey: string;
   threat: ThreatCauseDetail | null;
+  /** 이번 출격 SP 정산 (05 문서 4장). 지급은 디브리핑 확정 시점 */
+  spEarned: number;
+  /** 지급 후 잔액 — 디브리핑 화면이 카운트 표기에 쓴다 */
+  spTotal: number;
 }
 export type CamMode = 'color' | 'thermal' | 'bw';
 
