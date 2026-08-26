@@ -485,3 +485,24 @@ test('표적·위협 라벨이 서로 겹치지 않는다', async ({ page }) => 
     }
   }
 });
+
+/**
+ * GDD 7장은 가로 고정 전제다. `screen.orientation.lock('landscape')` 는
+ * iOS 에 아예 없고 안드로이드도 전체화면일 때만 받으므로, 세로로 들었을 때
+ * **화면이 그냥 찌그러지지 않도록** 마지막 방어선이 있어야 한다.
+ */
+test('세로로 들면 가로 안내가 뜨고, 가로에서는 사라진다', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForFunction(() => window.__debug?.ready === true, null, { timeout: 60_000 });
+
+  const notice = page.locator('#rotate-notice');
+  await expect(notice, '가로인데 안내가 떠 있다 — 화면을 가린다').toBeHidden();
+
+  await page.setViewportSize({ width: 412, height: 915 });
+  await expect(notice, '세로인데 안내가 없다 — 찌그러진 화면을 그냥 보여준다').toBeVisible();
+  await expect(notice).toContainText(/가로|LANDSCAPE/);
+  await page.screenshot({ path: 'tests/__screenshots__/portrait-notice.png' });
+
+  await page.setViewportSize({ width: 915, height: 412 });
+  await expect(notice, '가로로 돌렸는데 안내가 안 사라진다').toBeHidden();
+});

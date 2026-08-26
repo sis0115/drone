@@ -56,3 +56,4 @@ ui.cam.cycle,화면,VIEW
 threat.a1.name,산탄총,SHOTGUN
 threat.a1.advice,고도 {0}m 이상 또는 {1}m 이하로 통과,PASS ABOVE {0}m OR BELOW {1}m
 threat.b1.name,재밍 돔,JAMMER DOME
+ui.rotate,기기를 가로로 돌리세요,ROTATE DEVICE TO LANDSCAPE

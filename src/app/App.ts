@@ -10,6 +10,7 @@ import { platform } from '@/platform';
 import { KeyboardInput } from '@/input/KeyboardInput';
 import { TouchInput } from '@/input/TouchInput';
 import { NEUTRAL, type InputFrame, type InputSource } from '@/input/InputSource';
+import { RotateNotice } from '@/ui/RotateNotice';
 import type { AppContext, Screen } from './Screen';
 
 /**
@@ -41,6 +42,8 @@ export class App {
     setLocale(state.profile.settings.lang as Locale);
 
     this.renderer = new FpvRenderer(canvas);
+    // 가로 고정은 브라우저가 거부할 수 있다(iOS 는 아예 없다) — 안내 한 장을 항상 띄워 둔다
+    new RotateNotice(overlay);
     this.keyboard.onAction = (code) => this.onKeyAction?.(code);
     window.addEventListener('resize', this.onResize);
     this.onResize();

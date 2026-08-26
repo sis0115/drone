@@ -231,3 +231,37 @@ html, body {
   color: var(--c-accent-amber);
   outline: none;
 }
+
+/* ── 가로 고정 안내 (GDD 7장) ─────────────────────────────
+   orientation.lock 은 iOS 에서 없고 안드로이드도 전체화면일 때만 먹는다.
+   그래서 마지막 방어선은 CSS 다 — JS 없이도, 부팅 전에도 뜬다. */
+#rotate-notice {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.2em;
+  background: var(--c-bg-base);
+  color: var(--c-text-primary);
+  font-family: var(--font-mono);
+  font-size: clamp(12px, 4vw, 18px);
+  letter-spacing: 0.14em;
+  text-align: center;
+  padding: 2em;
+}
+
+#rotate-notice .rotate-mark {
+  /* 가로 화면 모양 그대로. 아이콘 파일 없이 글리프 하나로 (에셋 도입 금지) */
+  font-size: 3.2em;
+  line-height: 1;
+  border: 1px solid var(--c-line);
+  padding: 0.1em 0.5em;
+  color: var(--c-text-dim);
+}
+
+@media (orientation: portrait) {
+  #rotate-notice { display: flex; }
+}
