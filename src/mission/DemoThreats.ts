@@ -17,7 +17,11 @@ export function buildDemoThreats(heightAt: (x: number, z: number) => number): Th
   return [
     // 도로 옆 참호 — 트럭에 붙으려면 이 앞을 지난다
     new ShotgunInfantry(ground(104, -150)),
-    // 조종소와 도로 사이 — 진입 자체에 신호 대가를 매긴다
-    new JammerDome(ground(60, -80)),
+    /**
+     * 표적 구역 위에 얹는다. 조종소(원점)에서 반경+경고밴드(175m) 밖이어야 한다 —
+     * 처음 배치는 100m 라 **이륙도 하기 전에 경고가 떠 있었다**(스윕 점검).
+     * 예고가 상시 켜져 있으면 예고가 아니라 배경이 된다.
+     */
+    new JammerDome(ground(100, -195)),
   ];
 }

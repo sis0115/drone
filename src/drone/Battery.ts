@@ -19,6 +19,14 @@ export class Battery {
     if (this.level < 0) this.level = 0;
   }
 
+  /**
+   * 테스트·점검용. 180초 체공을 실시간으로 기다리면 이 컨테이너(~1fps)에서는
+   * 저전압 화면 한 장을 못 찍는다.
+   */
+  set(level: number): void {
+    this.level = Math.max(0, Math.min(100, level));
+  }
+
   get empty(): boolean {
     return this.level <= 0;
   }

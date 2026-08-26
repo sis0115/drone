@@ -153,6 +153,7 @@ test('러너가 계약을 강제한다 — 예고 없이 쏘는 위협은 격추
   /** 규칙을 안 읽은 위협. 프레임워크가 대신 막아야 한다. */
   class Cheater extends BaseThreat {
     readonly id = 'A1' as const;
+    readonly lethal = true;
     update(): ThreatEffect {
       return { jam: 0, kill: { threatId: 'A1', causeKey: 'threat.a1.name', agl: 10, adviceKey: 'threat.a1.advice', adviceParams: [] } };
     }
@@ -168,6 +169,7 @@ test('러너가 계약을 강제한다 — 예고 없이 쏘는 위협은 격추
 test('러너가 계약을 강제한다 — 예고를 발사 직전에 지워도 폐기된다', () => {
   class Feint extends BaseThreat {
     readonly id = 'A1' as const;
+    readonly lethal = true;
     private t = 0;
     update(sense: ThreatSense): ThreatEffect {
       this.t += sense.dt;
@@ -209,4 +211,19 @@ test('reset 이 위협과 위반 기록을 모두 되돌린다', () => {
   const first = runner.update({ ...drone(0, 30, 14), dt: DT });
   expect(first.kill, 'reset 후 첫 프레임에 격추가 나온다 — 조준이 남아 있었다').toBeNull();
   expect(runner.violations).toEqual([]);
+});
+
+test('B1 은 죽이지 않는 위협으로 표시된다 — HUD 적색은 치명 위협 전용', () => {
+  // 점검 스윕에서 재밍 돔이 적색으로 깜빡였다. `armed`(예고 계약 성립)를 색 기준으로
+  // 썼기 때문인데, B1 은 계약을 만족해도 격추하지 않는다.
+  // 적색을 남발하면 진짜 적색이 안 읽힌다.
+  const runner = new ThreatRunner([new JammerDome(at(0, 0)), new ShotgunInfantry(at(0, 0))]);
+  const { last } = run(runner, drone(0, 20, 14), 1.0);
+
+  const b1 = last.warnings.find((w) => w.id === 'B1');
+  const a1 = last.warnings.find((w) => w.id === 'A1');
+  expect(b1?.lethal, '재밍이 치명 위협으로 표시된다').toBe(false);
+  expect(a1?.lethal, '산탄총이 비치명으로 표시된다').toBe(true);
+  // 치명 위협이 HUD 한 줄을 가져간다 — 재밍이 조준을 가리면 안 된다
+  expect(last.warning?.id).toBe('A1');
 });

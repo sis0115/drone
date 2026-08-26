@@ -15,6 +15,8 @@ import type { Threat, ThreatId, ThreatKill, ThreatSense, Telegraph } from './Thr
 export interface ThreatWarning {
   id: ThreatId;
   kind: Telegraph['kind'];
+  /** 이 위협이 격추까지 가는가 — HUD 색 규칙의 근거 */
+  lethal: boolean;
   progress: number;
   distance: number;
   /** 이 예고가 떠 있은 시간(초). 계약 검사의 근거이자 테스트가 보는 값 */
@@ -39,7 +41,9 @@ const EMPTY: ThreatFrame = { jam: 0, kill: null, warning: null, warnings: [] };
 /** 급한 순서: 계약 성립 > 예고 종류 > 진행도. HUD 는 한 줄뿐이라 하나를 골라야 한다. */
 function urgency(w: ThreatWarning): number {
   const kind = w.kind === 'aim' ? 2 : w.kind === 'field' ? 1 : 0;
-  return (w.armed ? 100 : 0) + kind * 10 + w.progress;
+  // 치명 위협이 최우선이다. 재밍이 "예고가 오래 떠 있다"는 이유로 조준을 가리면
+  // HUD 한 줄이 가장 급한 정보를 못 보여준다.
+  return (w.lethal ? 1000 : 0) + kind * 100 + (w.armed ? 10 : 0) + w.progress;
 }
 
 export class ThreatRunner {
@@ -78,6 +82,7 @@ export class ThreatRunner {
       if (tel) {
         warnings.push({
           id: threat.id,
+          lethal: threat.lethal,
           kind: tel.kind,
           progress: tel.progress,
           distance: tel.distance,

@@ -3,10 +3,12 @@ import { ThermalRegistry } from './ThermalRegistry';
 import { createSkyDome, type SkyDome } from './SkyDome';
 import { buildTerrain, terrainH, type TerrainHandles } from './Terrain';
 import { FOG } from '@/data/render';
+import { WORLD_SEED } from '@/data/world';
 import { buildVegetation, type VegetationHandles } from './Vegetation';
 import { buildProps, type PropHandles } from './Props';
 import { buildTargets, type Target } from './Targets';
 import { AoCollector } from './Ao';
+import { seedWorld } from './noise';
 import type { Obstacle } from './Props';
 
 /**
@@ -35,7 +37,10 @@ export interface World {
   heightAt(x: number, z: number): number;
 }
 
-export function buildWorld(): World {
+export function buildWorld(options: { seed?: number } = {}): World {
+  // **가장 먼저** 시드를 세운다. 이 뒤로 나오는 배치 난수가 전부 여기에 매인다.
+  // 시드가 없으면 새로고침마다 지형지물이 달라져 미션 설계도, 스크린샷 비교도 성립하지 않는다.
+  seedWorld(options.seed ?? WORLD_SEED);
   const scene = new THREE.Scene();
   const fog = new THREE.Fog(FOG.color, FOG.near, FOG.far);
   scene.fog = fog;

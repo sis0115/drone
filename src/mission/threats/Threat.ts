@@ -69,6 +69,12 @@ export interface ThreatEffect {
 
 export interface Threat {
   readonly id: ThreatId;
+  /**
+   * 이 위협이 격추까지 가는가.
+   * HUD 색이 여기서 갈린다 — B1 재밍은 예고가 계약을 만족해도(`armed`) 죽이지 않으므로
+   * 적색으로 띄우면 안 된다. 적색을 남발하면 진짜 적색이 안 읽힌다.
+   */
+  readonly lethal: boolean;
   /** 월드 좌표. 오버레이가 화면에 찍는다 */
   readonly at: Vector3;
   readonly telegraph: Telegraph | null;
@@ -86,6 +92,7 @@ export const NO_EFFECT: ThreatEffect = { jam: 0, kill: null };
  */
 export abstract class BaseThreat implements Threat {
   abstract readonly id: ThreatId;
+  abstract readonly lethal: boolean;
   telegraph: Telegraph | null = null;
 
   constructor(readonly at: Vector3) {}

@@ -13,6 +13,8 @@ import { BaseThreat, horizontalDistance, type ThreatEffect, type ThreatSense } f
  */
 export class JammerDome extends BaseThreat {
   readonly id = 'B1' as const;
+  /** 죽이지 않는다 — HUD 가 적색을 쓰지 않게 하는 근거 */
+  readonly lethal = false;
 
   constructor(
     at: Vector3,

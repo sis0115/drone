@@ -36,4 +36,26 @@ export function fbm(x: number, y: number, oct: number): number {
   return v;
 }
 
-export const rnd = (a: number, b: number): number => a + Math.random() * (b - a);
+/**
+ * 배치용 난수 — **시드 고정**. `Math.random()` 을 쓰면 새로고침마다 맵이 달라진다.
+ *
+ * mulberry32: 32비트 상태 한 개, 4줄. 통계 품질은 배치용으로 충분하고
+ * 무엇보다 **같은 시드 → 같은 맵**이 보장된다.
+ * 화면 연출용 난수(신호 붕괴 리듬 등)는 여기 오지 않는다 — 그쪽은 매번 달라야 한다.
+ */
+let _state = 0;
+
+export function seedWorld(seed: number): void {
+  _state = seed >>> 0;
+}
+
+/** 0 이상 1 미만. `rnd` 와 배치 코드가 공유하는 유일한 난수원이다. */
+export function random(): number {
+  _state = (_state + 0x6d2b79f5) >>> 0;
+  let t = _state;
+  t = Math.imul(t ^ (t >>> 15), t | 1);
+  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+}
+
+export const rnd = (a: number, b: number): number => a + random() * (b - a);

@@ -41,6 +41,12 @@ export class ThreatOverlay {
     this.group.innerHTML = '';
     const w = window.innerWidth;
     const h = window.innerHeight;
+    /**
+     * 표적 라벨과 같은 겹침 문제가 여기도 있다. 두 오버레이는 SVG 가 달라서 서로를 못 보므로
+     * **방향으로 가른다** — 표적은 오른쪽, 위협은 왼쪽. 색(녹/황 ↔ 황/적)에 더해
+     * 자리까지 갈라 두면 화면 한가운데서 두 정보가 섞이지 않는다.
+     */
+    const usedRows: { x: number; y: number }[] = [];
 
     for (const threat of threats) {
       const tel = threat.telegraph;
@@ -55,14 +61,31 @@ export class ThreatOverlay {
       const sy = uy * h;
       if (sx < -40 || sx > w + 40 || sy < -40 || sy > h + 40) continue;
 
-      if (tel.kind === 'aim') this.drawAim(sx, sy, threat.id, tel.progress);
-      else if (tel.kind === 'field') this.drawField(sx, sy, threat.id, tel.progress);
-      else this.drawWatch(sx, sy, threat.id, tel.distance);
+      if (tel.kind === 'aim') this.drawAim(sx, sy, threat.id, tel.progress, usedRows);
+      else if (tel.kind === 'field') this.drawField(sx, sy, threat.id, tel.progress, tel.distance, usedRows);
+      else this.drawWatch(sx, sy, threat.id, tel.distance, usedRows);
     }
   }
 
+  /** 겹치지 않는 라벨 자리를 찾아 예약한다 (TargetOverlay 와 같은 방식). */
+  private claimRow(x: number, y: number, used: { x: number; y: number }[]): number {
+    let row = y;
+    for (let guard = 0; guard < 12; guard++) {
+      if (!used.some((u) => Math.abs(u.y - row) < 13 && Math.abs(u.x - x) < 150)) break;
+      row += 13;
+    }
+    used.push({ x, y: row });
+    return row;
+  }
+
   /** 조준 중 — 적색 삼각형 + 진행 바. 바가 다 차면 발사다. */
-  private drawAim(sx: number, sy: number, id: string, progress: number): void {
+  private drawAim(
+    sx: number,
+    sy: number,
+    id: string,
+    progress: number,
+    used: { x: number; y: number }[],
+  ): void {
     const r = 16;
     this.el('polygon', {
       points: `${sx},${sy - r} ${sx + r * 0.9},${sy + r * 0.7} ${sx - r * 0.9},${sy + r * 0.7}`,
@@ -74,24 +97,39 @@ export class ThreatOverlay {
     const bw = 34;
     this.line(sx - bw / 2, sy + r + 7, sx + bw / 2, sy + r + 7, RED, 1, 0.35);
     this.line(sx - bw / 2, sy + r + 7, sx - bw / 2 + bw * progress, sy + r + 7, RED, 2.2, 1);
-    this.text(sx + r + 6, sy - r + 4, id, RED);
+    this.textLeft(sx - r - 6, this.claimRow(sx - r - 6, sy - r + 4, used), id, RED);
   }
 
   /** 구역형(재밍) — 점선 호. 실선 원은 04 문서 금지(모든 선은 점선). */
-  private drawField(sx: number, sy: number, id: string, strength: number): void {
+  private drawField(
+    sx: number,
+    sy: number,
+    id: string,
+    strength: number,
+    distance: number,
+    used: { x: number; y: number }[],
+  ): void {
     const r = 13 + strength * 9;
     this.el('circle', {
       cx: String(sx), cy: String(sy), r: String(r),
       fill: 'none', stroke: AMBER, 'stroke-width': '1.2',
       'stroke-dasharray': '3 4', 'stroke-opacity': String(0.45 + strength * 0.55),
     });
-    this.text(sx + r + 6, sy + 4, `${id} ${Math.round(strength * 100)}%`, AMBER);
+    // 진입 전(감쇠 0)에 "0%" 를 띄우면 정보가 아니라 잡음이다. 그때는 남은 거리를 준다.
+    const label = strength > 0.02 ? `${Math.round(strength * 100)}%` : `${distance.toFixed(0)}M`;
+    this.textLeft(sx - r - 6, this.claimRow(sx - r - 6, sy + 4, used), `${id} ${label}`, AMBER);
   }
 
   /** 존재만 — 황색 짧은 세로선. 아직 위험하지 않다는 것도 정보다. */
-  private drawWatch(sx: number, sy: number, id: string, distance: number): void {
+  private drawWatch(
+    sx: number,
+    sy: number,
+    id: string,
+    distance: number,
+    used: { x: number; y: number }[],
+  ): void {
     this.line(sx, sy - 9, sx, sy + 9, AMBER, 1.2, 0.75);
-    this.text(sx + 6, sy + 4, `${id} ${distance.toFixed(0)}M`, AMBER);
+    this.textLeft(sx - 6, this.claimRow(sx - 6, sy + 4, used), `${id} ${distance.toFixed(0)}M`, AMBER);
   }
 
   private el(tag: string, attrs: Record<string, string>): SVGElement {
@@ -108,9 +146,11 @@ export class ThreatOverlay {
     });
   }
 
-  private text(x: number, y: number, content: string, fill: string): void {
+  /** 위협 라벨은 마커 **왼쪽**으로 뻗는다 — 오른쪽은 표적 오버레이 자리다. */
+  private textLeft(x: number, y: number, content: string, fill: string): void {
     const t = this.el('text', {
       x: String(x), y: String(y), fill,
+      'text-anchor': 'end',
       'font-size': '10', 'font-family': 'monospace',
     });
     t.textContent = content;

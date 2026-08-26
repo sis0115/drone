@@ -19,7 +19,8 @@
     "scene": "node tools/scene-check.mjs",
     "compare": "node tools/compare-demo.mjs",
     "test": "playwright test",
-    "verify": "npm run typecheck && npm run build && npm run harness && npm run perf && npm run scene && npm run test"
+    "verify": "npm run typecheck && npm run build && npm run harness && npm run perf && npm run scene && npm run test",
+    "shots": "SHOTS=1 playwright test tests/shots.spec.ts"
   },
   "dependencies": {
     "three": "^0.180.0"

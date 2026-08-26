@@ -53,8 +53,21 @@ export class TargetOverlay {
     this.group.innerHTML = '';
     const w = window.innerWidth;
     const h = window.innerHeight;
+    /**
+     * 이번 프레임에 쓴 라벨 줄의 y 좌표. 원거리 표적은 소실점 근처에 몰려서
+     * 고정 오프셋으로 찍으면 라벨 3개가 한 줄에 겹쳐 글자죽이 된다(실측).
+     * 가까운 것부터 자리를 잡고, 겹치면 아래로 한 줄씩 민다.
+     */
+    const usedRows: { x: number; y: number }[] = [];
 
-    for (const target of targets) {
+    // 가까운 표적이 먼저 자리를 갖는다 — 급한 정보가 밀려나면 안 된다
+    const ordered = [...targets].sort(
+      (a, b) =>
+        (a.group.position.x - dronePos.x) ** 2 + (a.group.position.z - dronePos.z) ** 2 -
+        ((b.group.position.x - dronePos.x) ** 2 + (b.group.position.z - dronePos.z) ** 2),
+    );
+
+    for (const target of ordered) {
       if (!target.alive) continue;
 
       this.projected.copy(target.group.position);
@@ -78,15 +91,33 @@ export class TargetOverlay {
         dronePos.z - target.group.position.z,
       );
 
-      if (distance > LOCK_RANGE_M) this.drawDistant(sx, sy, distance);
-      else this.drawLock(sx, sy, distance);
+      if (distance > LOCK_RANGE_M) this.drawDistant(sx, sy, distance, usedRows);
+      else this.drawLock(sx, sy, distance, usedRows);
     }
   }
 
+  /** 겹치지 않는 라벨 자리를 찾아 돌려주고 예약한다. */
+  private claimRow(x: number, y: number, used: { x: number; y: number }[]): number {
+    let row = y;
+    // 같은 가로 구간에 이미 라벨이 있으면 한 줄(13px) 아래로 민다
+    for (let guard = 0; guard < 12; guard++) {
+      const clash = used.some((u) => Math.abs(u.y - row) < 13 && Math.abs(u.x - x) < 150);
+      if (!clash) break;
+      row += 13;
+    }
+    used.push({ x, y: row });
+    return row;
+  }
+
   /** 원거리 — 녹색 사선 + 다이아몬드 + 거리 라벨 */
-  private drawDistant(sx: number, sy: number, distance: number): void {
+  private drawDistant(
+    sx: number,
+    sy: number,
+    distance: number,
+    used: { x: number; y: number }[],
+  ): void {
     const lx = sx + 58;
-    const ly = sy - 34;
+    const ly = this.claimRow(lx, sy - 34, used);
     this.line(lx, ly, sx + 9, sy - 5, GREEN, 1.1, 0.9);
     this.line(lx, ly, lx + 34, ly, GREEN, 1.1, 0.9);
     this.el('polygon', {
@@ -99,7 +130,12 @@ export class TargetOverlay {
   }
 
   /** 근거리 — 황색 락온 박스 + 내부 십자. 박스가 거리에 따라 커진다. */
-  private drawLock(sx: number, sy: number, distance: number): void {
+  private drawLock(
+    sx: number,
+    sy: number,
+    distance: number,
+    used: { x: number; y: number }[],
+  ): void {
     const size = Math.max(26, Math.min(190, 1500 / Math.max(6, distance)));
     this.el('rect', {
       x: String(sx - size / 2),
@@ -113,7 +149,9 @@ export class TargetOverlay {
     });
     this.line(sx - size * 0.18, sy, sx + size * 0.18, sy, AMBER, 1.2, 1);
     this.line(sx, sy - size * 0.18, sx, sy + size * 0.18, AMBER, 1.2, 1);
-    this.text(sx + size / 2 + 6, sy - size / 2 + 10, 'LOCK', AMBER);
+    // 박스 모서리에 붙이면 선과 글자가 겹친다 — 한 칸 띄우고 겹침 회피도 통과시킨다
+    const ly = this.claimRow(sx + size / 2 + 10, sy - size / 2 - 4, used);
+    this.text(sx + size / 2 + 10, ly, 'LOCK', AMBER);
   }
 
   private el(tag: string, attrs: Record<string, string>): SVGElement {

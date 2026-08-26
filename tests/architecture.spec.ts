@@ -117,3 +117,19 @@ test('world/ 는 브라우저 없이 씬을 지을 수 있어야 한다 — 렌�
   }
   expect(bad, `world/ 가 렌더러에 의존한다 (npm run scene 이 깨진다):\n  ${bad.join('\n  ')}`).toEqual([]);
 });
+
+test('월드 배치는 시드에 매인다 — 같은 씨앗이면 같은 맵', () => {
+  // 점검 스윕에서 새로고침마다 맵이 달라졌다. 지형 높이(fbm)는 결정적이었고
+  // 달라지던 것은 **배치**였다. 미션(T8)이 "엄폐물 뒤로 접근" 같은 설계를 하려면
+  // 배치가 재현돼야 한다.
+  const bad: string[] = [];
+  for (const file of sourceFiles('src/world')) {
+    // 텍스처는 픽셀 노이즈지 배치가 아니다 — 매번 달라도 게임 설계에 영향이 없다
+    if (file.endsWith('textures.ts')) continue;
+    // noise.ts 는 난수원 자체다 (주석에서 Math.random 을 언급한다)
+    if (file.endsWith('noise.ts')) continue;
+    const body = readFileSync(file, 'utf8');
+    if (/Math\.random\(/.test(body)) bad.push(file);
+  }
+  expect(bad, `배치 코드가 시드 밖 난수를 쓴다 (world/noise 의 random() 을 쓸 것):\n  ${bad.join('\n  ')}`).toEqual([]);
+});

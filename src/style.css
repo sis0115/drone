@@ -216,7 +216,9 @@ html, body {
   background: transparent;
   border: 1px solid var(--c-line);
   border-radius: 0;
-  color: var(--c-text-dim);
+  /* 밝은 주간 컬러 화면에서 dim 은 배경에 묻힌다 — 유일한 상시 조작 버튼이 안 보이면 안 된다 */
+  color: var(--c-text-primary);
+  text-shadow: 0 0 2px #000, 0 1px 2px #000;
   font-family: var(--font-mono);
   font-size: clamp(9px, 1.4vw, 13px);
   letter-spacing: 0.12em;

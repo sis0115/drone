@@ -427,14 +427,61 @@ test('T7 위협 — B1 재밍 돔이 실제로 신호를 깎는다', async ({ pa
     }));
   };
 
-  // B1 은 (60, -80), 반경 135m. 코어 안 vs 한참 밖을 비교한다.
+  // B1 은 (100, -195), 반경 135m. 코어 안 vs 밖을 비교한다.
   // 조종소(원점)에서 **같은 거리**인 두 점을 고른다. 멀리 나가 비교하면
   // 거리 감쇠가 섞여서 재밍 기여분을 못 본다.
-  const inside = await settle(60, -80);
-  const outside = await settle(-60, 80);
+  const inside = await settle(100, -195);
+  const outside = await settle(-100, 195);
 
   expect(inside.jam, '돔 코어인데 재밍이 안 걸린다').toBeGreaterThan(0.9);
   expect(outside.jam, '돔 밖인데 재밍이 걸린다').toBe(0);
   expect(outside.signal, '차폐가 남아 있다 — 비교 조건이 성립하지 않는다').toBeGreaterThan(0.9);
   expect(inside.signal, '재밍이 신호를 깎지 않는다 — 배선이 끊겼다').toBeLessThan(outside.signal - 0.2);
+});
+
+/**
+ * 점검 스윕에서 나온 결함: 원거리 표적이 소실점 근처에 몰리면 라벨이 한 줄에 포개져
+ * "TRUCKTRUCKTRUCK 222M" 로 읽혔다. 고정 오프셋으로 라벨을 찍은 탓이다.
+ */
+test('표적·위협 라벨이 서로 겹치지 않는다', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForFunction(() => window.__debug?.ready === true, null, { timeout: 60_000 });
+  await page.evaluate(async () => {
+    window.__debug.flight.setWindCalm();
+    window.__debug.flight.respawn();
+    // 트럭 3대 + A1 존재 + B1 재밍이 전부 소실점 근처에 몰리는 시점.
+    // 점검 스윕에서 라벨이 뭉갠 자리가 정확히 여기다(sweep-11).
+    for (let i = 0; i < 4; i++) {
+      const t = window.__debug.flight.telemetry();
+      t.pos.set(104, t.pos.y + (16 - t.agl), -80);
+      t.vel.set(0, 0, 0);
+      t.yaw = 0;
+      await new Promise((r) => requestAnimationFrame(r));
+    }
+  });
+
+  /**
+   * **한 번의 evaluate 안에서** 조회와 측정을 끝낸다.
+   * 오버레이는 매 프레임 `innerHTML = ''` 로 통째로 갈아 끼운다. locator 로 노드를 잡아
+   * 두고 나중에 재면 그 사이 한 프레임이 지나 노드가 떨어져 나가고, 떨어진 SVG 노드는
+   * 크기를 전부 0 으로 준다 — 그러면 어떤 겹침도 검출되지 않는다(실제로 그렇게 통과했다).
+   */
+  const boxes = await page.evaluate(() =>
+    [...document.querySelectorAll('.target-overlay text, .threat-overlay text')].map((n) => {
+      const b = (n as SVGTextElement).getBBox();
+      // text-anchor:end 인 라벨은 x 가 오른쪽 끝이지만 getBBox 는 실제 상자를 준다
+      return { text: n.textContent ?? '', x: b.x, y: b.y, w: b.width, h: b.height };
+    }),
+  );
+  expect(boxes.length, '라벨이 하나도 없다 — 시점이 틀렸다').toBeGreaterThan(1);
+
+  for (let i = 0; i < boxes.length; i++) {
+    for (let j = i + 1; j < boxes.length; j++) {
+      const a = boxes[i];
+      const b = boxes[j];
+      const overlap =
+        a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+      expect(overlap, `라벨이 겹친다: "${a.text}" ↔ "${b.text}"`).toBe(false);
+    }
+  }
 });

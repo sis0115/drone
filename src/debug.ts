@@ -38,6 +38,8 @@ export interface FlightDebugApi {
   setMode(mode: 'arcade' | 'pro'): void;
   telemetry(): DroneTelemetry;
   battery(): number;
+  /** 잔량을 직접 세운다 — 저전압 화면을 실시간으로 기다리지 않기 위해 */
+  setBattery(percent: number): void;
   crashed(): string | null;
   respawn(): void;
   camMode(): string;
@@ -109,6 +111,7 @@ export function installDebug(app: App, flight: FlightScreen): DebugApi {
       battery: () => flight.batteryLevel,
       crashed: () => flight.crashed,
       respawn: () => flight.spawn(),
+      setBattery: (p) => flight.setBattery(p),
       camMode: () => state.camMode,
       threats: () => flight.threatState,
       setCamMode: (m) => flight.setCamMode(m),

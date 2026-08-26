@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { fbm, rnd } from './noise';
+import { fbm, random, rnd } from './noise';
 import { roofTex, texMat, wallTex } from './textures';
 import { terrainH } from './Terrain';
 import { buildInstanced, type InstanceSpec } from './Instancing';
@@ -73,7 +73,7 @@ function buildRocks(scene: THREE.Scene, registry: ThermalRegistry): void {
       p: [x, terrainH(x, z) + 0.3, z],
       r: [rnd(0, 3), rnd(0, 3), rnd(0, 3)],
       s: [sc, sc * rnd(0.6, 1), sc],
-      c: COLORS[(Math.random() * 3) | 0],
+      c: COLORS[(random() * 3) | 0],
     });
   }
   const mat = new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 0, flatShading: true });
@@ -146,7 +146,7 @@ function buildHouses(
     const walls = registry.registerAs(
       new THREE.Mesh(
         new THREE.BoxGeometry(w, h, d),
-        kind === 1 ? WALL_BIG[(Math.random() * 2) | 0] : WALL_SM[(Math.random() * 3) | 0],
+        kind === 1 ? WALL_BIG[(random() * 2) | 0] : WALL_SM[(random() * 3) | 0],
       ),
       'wall',
     );
@@ -168,7 +168,7 @@ function buildHouses(
       roof.position.set(px, y + h + w * 0.16, pz);
       roof.castShadow = true;
       scene.add(roof);
-      if (kind === 0 && Math.random() < 0.7) {
+      if (kind === 0 && random() < 0.7) {
         chimneys.push({
           p: [px + rnd(-w * 0.25, w * 0.25), y + h + 1.6, pz + rnd(-d * 0.2, d * 0.2)],
           r: [0, 0, 0],

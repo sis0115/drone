@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { fbm, rnd } from './noise';
+import { fbm, random, rnd } from './noise';
 import { grassTex } from './textures';
 import { terrainH } from './Terrain';
 import { buildInstanced, type InstanceSpec } from './Instancing';
@@ -169,7 +169,7 @@ function buildTrees(scene: THREE.Scene, registry: ThermalRegistry, ao: AoCollect
     if (kind === 2) {
       const h = rnd(6, 10);
       dead.push({ p: [px, y + h / 2, pz], r: [0, rnd(0, 6.28), rnd(-0.05, 0.05)], s: [1, h / 8, 1], c: 0x6a5c48 });
-      const nb = 3 + ((Math.random() * 3) | 0);
+      const nb = 3 + ((random() * 3) | 0);
       for (let b = 0; b < nb; b++) {
         const a = rnd(0, 6.28);
         const tilt = rnd(0.6, 1.25);
@@ -190,10 +190,10 @@ function buildTrees(scene: THREE.Scene, registry: ThermalRegistry, ao: AoCollect
       p: [px, y + th / 2, pz],
       r: [0, rnd(0, 6.28), 0],
       s: [s, th / 7, s],
-      c: BARK[(Math.random() * BARK.length) | 0],
+      c: BARK[(random() * BARK.length) | 0],
     });
-    const cc = CROWNS[(Math.random() * CROWNS.length) | 0];
-    const nBlob = tall ? 4 : 3 + ((Math.random() * 3) | 0);
+    const cc = CROWNS[(random() * CROWNS.length) | 0];
+    const nBlob = tall ? 4 : 3 + ((random() * 3) | 0);
     for (let b = 0; b < nBlob; b++) {
       const rad = tall ? rnd(1.1, 1.8) * s : rnd(1.6, 2.9) * s;
       const ox = tall ? rnd(-0.5, 0.5) * s : rnd(-2.1, 2.1) * s;
@@ -217,7 +217,7 @@ function buildTrees(scene: THREE.Scene, registry: ThermalRegistry, ao: AoCollect
       const t = i / n;
       const px = x0 + dx * t + rnd(-sp, sp);
       const pz = z0 + dz * t + rnd(-sp, sp);
-      const r = Math.random();
+      const r = random();
       makeTree(px, pz, r < 0.62 ? 0 : r < 0.88 ? 1 : 2);
     }
   };

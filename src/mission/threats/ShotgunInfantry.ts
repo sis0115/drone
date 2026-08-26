@@ -14,6 +14,7 @@ import { BaseThreat, horizontalDistance, NO_EFFECT, type ThreatEffect, type Thre
  */
 export class ShotgunInfantry extends BaseThreat {
   readonly id = 'A1' as const;
+  readonly lethal = true;
 
   private aim = 0;
   private reload = 0;

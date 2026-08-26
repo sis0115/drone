@@ -180,6 +180,8 @@ export class FlightScreen implements Screen {
             token: this.threatFrame.warning.id,
             distance: this.threatFrame.warning.distance,
             armed: this.threatFrame.warning.armed,
+            lethal: this.threatFrame.warning.lethal,
+            aiming: this.threatFrame.warning.kind === 'aim',
           }
         : null,
       losBlocked: this.los.blocked > 0.5,
@@ -301,6 +303,10 @@ export class FlightScreen implements Screen {
   }
   get crashed(): string | null {
     return this.crashReason;
+  }
+  /** 테스트·점검용 — 배터리 잔량을 직접 세운다 */
+  setBattery(percent: number): void {
+    this.battery.set(percent);
   }
   calmWind(): void {
     this.wind.calm();
