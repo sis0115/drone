@@ -23,6 +23,8 @@ export interface World {
   props: PropHandles;
   /** LOS 차폐·충돌 판정 대상 (건물·연료탱크·송전탑) */
   obstacles: Obstacle[];
+  /** 드론을 따라다녀야 하는 태양 (섀도우 카메라가 ±110m 뿐이다) */
+  sun: THREE.DirectionalLight;
   heightAt(x: number, z: number): number;
 }
 
@@ -33,7 +35,9 @@ export function buildWorld(): World {
   const registry = new ThermalRegistry();
 
   scene.add(createSkyDome());
-  addLights(scene);
+  addAmbient(scene);
+
+  const sun = addSun(scene);
 
   const terrain = buildTerrain(scene, registry);
 
@@ -49,6 +53,7 @@ export function buildWorld(): World {
     terrain,
     vegetation,
     props,
+    sun,
     obstacles: props.obstacles,
     heightAt: terrainH,
   };
@@ -63,9 +68,11 @@ export function buildWorld(): World {
  */
 const LIGHT_SCALE = Math.PI;
 
-function addLights(scene: THREE.Scene): void {
+function addAmbient(scene: THREE.Scene): void {
   scene.add(new THREE.HemisphereLight(0xbcd4e6, 0x4a5236, 1.05 * LIGHT_SCALE));
+}
 
+function addSun(scene: THREE.Scene): THREE.DirectionalLight {
   const sun = new THREE.DirectionalLight(0xfff2d8, 1.25 * LIGHT_SCALE);
   sun.position.set(-70, 100, 50);
   sun.castShadow = true;
@@ -81,4 +88,5 @@ function addLights(scene: THREE.Scene): void {
   sun.shadow.bias = -0.0012;
   scene.add(sun);
   scene.add(sun.target);
+  return sun;
 }

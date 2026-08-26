@@ -43,6 +43,58 @@ test('T2 씬이 실제로 그려진다 — 드로우콜·삼각형 예산', asyn
   await page.screenshot({ path: 'tests/__screenshots__/t2-world.png' });
 });
 
+test('T3 비행이 실제로 배선되어 있다 — 입력이 기체를 움직인다', async ({ page }) => {
+  await page.goto('/app.html');
+  await page.waitForFunction(() => window.__debug?.ready === true, null, { timeout: 60_000 });
+
+  // 바람을 끄고 재현 가능한 조건으로 만든다.
+  await page.evaluate(() => {
+    window.__debug.flight.setWindCalm();
+    window.__debug.flight.respawn();
+  });
+
+  const start = await page.evaluate(() => window.__debug.drone.pos);
+
+  // 사람과 같은 경로(InputSource)로 전진 입력을 넣는다.
+  await page.evaluate(() => window.__debug.setInput(() => ({ pitch: 1 })));
+  // 이 컨테이너는 프레임이 느리다 — 시간이 아니라 **프레임 수**로 기다린다.
+  await page.evaluate(async () => {
+    const target = window.__debug.frame + 8;
+    while (window.__debug.frame < target) await new Promise((r) => requestAnimationFrame(r));
+  });
+
+  const after = await page.evaluate(() => ({
+    pos: window.__debug.drone.pos,
+    spd: window.__debug.drone.spd,
+    battery: window.__debug.flight.battery(),
+    crashed: window.__debug.flight.crashed(),
+  }));
+
+  const moved = Math.hypot(after.pos[0] - start[0], after.pos[2] - start[2]);
+  expect(moved, '전진 입력에도 기체가 움직이지 않았다').toBeGreaterThan(1);
+  expect(after.spd).toBeGreaterThan(1);
+  expect(after.battery).toBeLessThan(100); // 배터리가 닳는다
+  expect(after.crashed).toBeNull();
+});
+
+test('비행 모드 전환이 기체를 순간이동시키지 않는다', async ({ page }) => {
+  await page.goto('/app.html');
+  await page.waitForFunction(() => window.__debug?.ready === true, null, { timeout: 60_000 });
+
+  const result = await page.evaluate(() => {
+    window.__debug.flight.setWindCalm();
+    window.__debug.flight.respawn();
+    const before = { ...window.__debug.flight.telemetry().pos };
+    window.__debug.flight.setMode('pro');
+    const after = { ...window.__debug.flight.telemetry().pos };
+    return { mode: window.__debug.flight.mode(), before, after };
+  });
+
+  expect(result.mode).toBe('pro');
+  expect(result.after.x).toBeCloseTo(result.before.x, 3);
+  expect(result.after.z).toBeCloseTo(result.before.z, 3);
+});
+
 test('__debug 훅 규격 — 좌표·속도·fps·렌더 정보 노출', async ({ page }) => {
   await page.goto('/app.html');
   await page.waitForFunction(() => window.__debug?.ready === true, null, { timeout: 10_000 });

@@ -1,6 +1,13 @@
 import { FpvRenderer } from '@/render/Renderer';
 import { buildWorld } from '@/world/SceneBuilder';
 import { SignalModel } from '@/core/SignalModel';
+import { LineOfSight } from '@/core/LineOfSight';
+import { ArcadeFlight } from '@/drone/ArcadeFlight';
+import { ProFlight } from '@/drone/ProFlight';
+import { Wind } from '@/drone/Wind';
+import { Battery } from '@/drone/Battery';
+import type { FlightContext, FlightModel } from '@/drone/FlightModel';
+import { Vector3 } from 'three';
 import { DEFAULT as POSTFX } from '@/data/postfx';
 import { Time } from '@/core/Time';
 import { state } from '@/core/GameState';
@@ -28,16 +35,55 @@ const time = new Time();
 const world = buildWorld();
 const renderer = new FpvRenderer(canvas, world.scene);
 const signal = new SignalModel();
+const los = new LineOfSight();
+const battery = new Battery();
+
+// 돌풍은 무전으로 예고된다 (GDD 4.5 규칙 1: 모든 위협은 예고된다).
+const wind = new Wind(() => bus.emit('link:lost', { reason: 'gust' }));
+
+const flightCtx: FlightContext = {
+  heightAt: (x, z) => world.heightAt(x, z),
+  obstacles: world.obstacles,
+  wind,
+  onCrash: (reason) => {
+    if (crashed) return;
+    crashed = reason;
+    renderer.uniforms.uDead.value = 1;
+  },
+};
+
+let crashed: string | null = null;
+const models: Record<'arcade' | 'pro', FlightModel> = {
+  arcade: new ArcadeFlight(flightCtx),
+  pro: new ProFlight(flightCtx),
+};
+let flight: FlightModel = models[state.flightMode];
+
+const SPAWN = new Vector3(0, world.heightAt(0, 0) + 0.6, 0);
+function spawn(): void {
+  crashed = null;
+  renderer.uniforms.uDead.value = 0;
+  battery.reset();
+  signal.reset();
+  los.reset();
+  for (const m of Object.values(models)) m.reset(SPAWN, Math.PI);
+}
+spawn();
+
+function setFlightMode(mode: 'arcade' | 'pro'): void {
+  const previous = flight.telemetry;
+  state.flightMode = mode;
+  flight = models[mode];
+  // 모드를 바꿔도 기체가 순간이동하지 않게 상태를 넘긴다.
+  flight.telemetry.pos.copy(previous.pos);
+  flight.telemetry.vel.copy(previous.vel);
+  flight.telemetry.yaw = previous.yaw;
+  hud.setMode(mode);
+}
 const hud = new Hud(hudRoot);
 const boot = new BootScreen(bootRoot);
 
-// T2: 씬이 들어왔다. 비행은 T3 이므로 카메라를 고정한다.
-//
-// 고도 18m 는 아케이드 모드의 기본 유지 고도이고, 프로토타입이 실제로 보여 주는 시점이다.
-// 지면 가까이(2m)에 두면 풀 빌보드 오버드로가 폭발해 **성능이 20배 느려진다**(실측) —
-// 이식 결과를 프로토타입과 같은 조건에서 비교하려면 이 고도여야 한다.
-renderer.camera.position.set(0, world.heightAt(0, 0) + 18, 0);
-renderer.camera.rotation.set(0, Math.PI, 0, 'YXZ'); // 프로토타입 스폰 yaw 와 동일
+renderer.setParams(POSTFX);
 renderer.setParams(POSTFX);
 
 const keyboard = new KeyboardInput();
@@ -54,13 +100,22 @@ hud.setMode(state.flightMode);
 
 const debug = installDebug({
   snapshot: () => ({ ...state.snapshot(), input: lastInput }),
-  telemetry: () => null, // 비행 모델은 T3
+  telemetry: () => flight.telemetry,
   renderInfo: () => renderer.info,
   fps: () => time.fps,
   frame: () => time.frame,
   missionId: () => null,
   setInputSource: (source) => {
     scripted = source;
+  },
+  flight: {
+    mode: () => state.flightMode,
+    setMode: setFlightMode,
+    telemetry: () => flight.telemetry,
+    battery: () => battery.level,
+    crashed: () => crashed,
+    respawn: spawn,
+    setWindCalm: () => wind.calm(),
   },
 });
 
@@ -84,18 +139,44 @@ function loop(now: number): void {
     }
   }
 
+  // ── 비행 ──
+  if (!crashed) {
+    wind.update(dt);
+    flight.step(lastInput, dt);
+    const load = state.flightMode === 'arcade' ? Math.abs(lastInput.pitch) * 0.9 : 1;
+    battery.drain(dt, load);
+    if (battery.empty) flightCtx.onCrash?.('배터리 소진');
+  }
+
+  const t = flight.telemetry;
+  // 카메라 = 기체 시점. 프로 모드는 기울기가 화면에 그대로 실린다.
+  renderer.camera.position.copy(t.pos);
+  renderer.camera.rotation.set(0, 0, 0);
+  renderer.camera.rotateY(t.yaw);
+  renderer.camera.rotateX(state.flightMode === 'pro' ? t.pitch * 0.85 : t.pitch);
+  renderer.camera.rotateZ(state.flightMode === 'pro' ? -t.roll * 0.85 : -t.roll);
+
+  // 그림자 카메라가 기체를 따라간다 — ±110m 밖은 그림자를 포기하는 설계라 필수다.
+  world.sun.position.set(t.pos.x - 70, world.heightAt(t.pos.x, t.pos.z) + 100, t.pos.z + 50);
+  world.sun.target.position.set(t.pos.x, world.heightAt(t.pos.x, t.pos.z), t.pos.z);
+  world.sun.target.updateMatrixWorld();
+
   // 신호 품질: 거리 + LOS 차폐 + 재밍 → 단일 변수. 후처리가 이걸 읽는다.
-  const cam = renderer.camera.position;
+  los.update(t.pos, world.obstacles);
   signal.update(
     {
-      distance: Math.hypot(cam.x, cam.z),
-      losBlocked: 0, // LOS 레이캐스트는 T3(비행)에서 붙는다
-      jammed: false,
+      distance: Math.hypot(t.pos.x, t.pos.z),
+      losBlocked: los.blocked,
+      jammed: false, // 재밍은 T7 위협 프레임워크에서 붙는다
       falloff: POSTFX.falloff,
     },
     dt,
     POSTFX.freezeAmt,
   );
+  renderer.uniforms.uShake.value.set(flight.shake.x, flight.shake.y);
+  // 젤로(모터 진동)·모션블러는 속도에 비례한다.
+  renderer.uniforms.uJello.value = Math.min(1, t.spd / 20);
+  renderer.uniforms.uMotion.value = Math.min(1, t.spd / 26);
   state.signalQuality = signal.quality;
   renderer.uniforms.uBurst.value = signal.burst;
   // 프리즈 프레임에는 rtPrev 를 갱신하지 않는다 = 이전 프레임이 그대로 남는다.

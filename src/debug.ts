@@ -19,6 +19,19 @@ export interface DebugApi {
   errors: string[];
   ready: boolean;
   setInput(fn: ((elapsed: number, dt: number) => Partial<InputFrame>) | null): void;
+  /** 비행 조작 — Playwright 가 사람과 같은 경로로 기체를 몬다. */
+  flight: FlightDebugApi;
+}
+
+export interface FlightDebugApi {
+  mode(): 'arcade' | 'pro';
+  setMode(mode: 'arcade' | 'pro'): void;
+  telemetry(): DroneTelemetry;
+  battery(): number;
+  crashed(): string | null;
+  respawn(): void;
+  /** 테스트 재현성을 위해 바람을 끈다. */
+  setWindCalm(): void;
 }
 
 declare global {
@@ -37,6 +50,7 @@ export interface DebugHost {
   frame(): number;
   missionId(): string | null;
   setInputSource(source: InputSource | null): void;
+  flight: FlightDebugApi;
 }
 
 export function installDebug(host: DebugHost): DebugApi {
@@ -76,6 +90,7 @@ export function installDebug(host: DebugHost): DebugApi {
     setInput(fn) {
       host.setInputSource(fn ? new ScriptedInputSource(fn) : null);
     },
+    flight: host.flight,
   };
 
   window.__debug = api;
