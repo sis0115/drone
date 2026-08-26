@@ -1,7 +1,8 @@
 # 게임 기획서 (GDD) — 가칭 「SIGNAL LOST: FPV」
 
-> 버전 0.1 / 작성일 2026-07-15 / 플랫폼: 모바일(Android/iOS) 우선, Steam 확장
-> 엔진: Unity 6 (URP) / 언어: C#
+> 버전 0.1 / 작성일 2026-07-15 / 플랫폼: 모바일 웹 우선, 이후 Steam 확장
+> ⚠️ **스택은 Three.js + Vite + TypeScript 로 변경됨** (2026-08-25). 9장 참조.
+> 이 문서는 **게임 설계** 기준이고, 구현 기준은 `02_DEV_SPEC_web.md` 다.
 
 ---
 
@@ -465,15 +466,22 @@
 
 ## 9. 기술 스펙
 
+> ⚠️ **이 장의 Unity 기반 내용은 폐기되었다** (2026-08-25 결정, DEVLOG 참조).
+> 구현 기준은 `02_DEV_SPEC_web.md` 이며, 아래는 그 요약과 아직 유효한 항목만 남긴 것이다.
+
 | 항목 | 결정 |
 |---|---|
-| 엔진 | Unity 6 LTS + URP |
-| 언어 | C# |
-| 물리 | Rigidbody 기반 커스텀 쿼드콥터 물리 (모터 4점 추력 모델, 단순화 버전부터) |
-| 타깃 | Android API 26+/iOS 15+, 중급기 60fps (Galaxy A시리즈 기준) |
-| 백엔드 | 1차 없음(로컬 저장) → 라이브 운영 시 Firebase (인증·리더보드·리모트 컨피그) |
-| 개발 워크플로우 | 모바일 Claude Code + 맥북(tmux/Tailscale) 원격, unity-mcp로 에디터 제어, 배치 모드 CLI 빌드 → Firebase App Distribution 테스트 배포 |
-| 광고/IAP | AdMob(리워드) + Unity IAP |
+| 스택 | **Three.js + Vite + TypeScript** (모바일 웹 우선). 상세는 02 문서 1장 |
+| 물리 | **자체 물리** — 검증 완료(02 문서 4장). Rapier.js 는 v0.5 이후 재검토 |
+| 타깃 | 중급 안드로이드 폰 브라우저 60fps(최소 45). **실기 미측정 — 최우선 확인 항목** |
+| 백엔드 | **없음**(로컬 저장). 클라우드 세이브는 구현했다가 걷어냄 — README 6-1장 |
+| 개발 워크플로우 | 모바일 Claude Code + 맥북(tmux/Tailscale) 원격, `main` push → Vercel 자동 배포 |
+| 네이티브 | Capacitor (v1.0 시점, 필요 시) |
+
+**아직 결정되지 않은 것** — 웹 스택 전환으로 재검토가 필요한 항목:
+- 광고/IAP: Unity 기준 AdMob + Unity IAP 였다. 웹/Capacitor 에서 무엇을 쓸지 미정
+- 리더보드·리모트 컨피그: Firebase 를 전제했으나 현재 백엔드가 없다.
+  11장 수익화와 6.6 재고제가 이 결정에 걸려 있으므로 v0.3 이전에 정해야 한다
 
 ## 10. MVP 범위 (v0.1 → v1.0)
 
