@@ -15,6 +15,14 @@ export interface GameEvents {
   /** 돌풍 예고 — GDD 4.5 규칙 1: 모든 위협은 예고된다. */
   'wind:gust': { strength: number };
   'signal:changed': { quality: number };
+  /** 위협 예고 — GDD 4.5 규칙 1. `armed` 면 지금 격추가 성립하는 상태다 */
+  'threat:telegraph': { id: string; kind: string; progress: number; distance: number; armed: boolean };
+  /** 예고 해제 — 벗어났거나 재장전으로 내려갔다 */
+  'threat:cleared': { id: string };
+  /** 격추 성립. 디브리핑(T8)이 이 payload 로 원인 1줄을 만든다 */
+  'threat:hit': {
+    id: string; causeKey: string; agl: number; adviceKey: string; adviceParams: readonly number[];
+  };
   'mission:started': { missionId: string };
   'mission:ended': { missionId: string; cleared: boolean };
   'sp:changed': { sp: number; delta: number };

@@ -11,6 +11,9 @@ import type { CrashReason, FlightContext, FlightModel } from '@/drone/FlightMode
 import { DEFAULT as POSTFX } from '@/data/postfx';
 import { Hud } from '@/ui/Hud';
 import { TargetOverlay } from '@/ui/TargetOverlay';
+import { ThreatOverlay } from '@/ui/ThreatOverlay';
+import { ThreatRunner, type ThreatFrame } from '@/mission/threats/ThreatRunner';
+import { buildDemoThreats } from '@/mission/DemoThreats';
 import { updateTargets } from '@/world/Targets';
 import { CAM_MODE_LABEL, THERMAL_UNIFORM, applyCameraMode, nextCamMode } from '@/world/CameraMode';
 import { PadOverlay } from '@/ui/PadOverlay';
@@ -33,12 +36,15 @@ export class FlightScreen implements Screen {
   private hudRoot!: HTMLElement;
   private pads: PadOverlay | null = null;
   private targets: TargetOverlay | null = null;
+  private threatMarkers: ThreatOverlay | null = null;
   private elapsed = 0;
 
   private readonly signal = new SignalModel();
   private readonly los = new LineOfSight();
   private readonly battery = new Battery();
   private wind!: Wind;
+  private threats!: ThreatRunner;
+  private threatFrame: ThreatFrame = { jam: 0, kill: null, warning: null, warnings: [] };
 
   private models!: Record<'arcade' | 'pro', FlightModel>;
   private flight!: FlightModel;
@@ -67,11 +73,16 @@ export class FlightScreen implements Screen {
     };
     this.flight = this.models[ctx.state.flightMode];
 
+    // 위협은 이 화면이 아니라 `mission/` 이 소유한다 — 여기서는 감각 입력을 주고
+    // 결과(감쇠·격추)를 받을 뿐이다. T8 이 오면 배치가 MissionDef 로 옮겨 간다.
+    this.threats = new ThreatRunner(buildDemoThreats((x, z) => this.world.heightAt(x, z)));
+
     this.hudRoot = document.createElement('div');
     this.hudRoot.id = 'ingame';
     ctx.overlay.appendChild(this.hudRoot);
     this.hud = new Hud(this.hudRoot);
     this.targets = new TargetOverlay(this.hudRoot);
+    this.threatMarkers = new ThreatOverlay(this.hudRoot);
     this.hud.onCamCycle(() => this.cycleCamMode());
     // 데스크톱 단축키: C = 카메라 모드, M = 비행 모드
     ctx.onKeyAction((code) => {
@@ -95,6 +106,8 @@ export class FlightScreen implements Screen {
     this.pads = null;
     this.targets?.dispose();
     this.targets = null;
+    this.threatMarkers?.dispose();
+    this.threatMarkers = null;
     this.hud.dispose();
     this.hudRoot.remove();
     void this.ctx.platform.keepAwake(false);
@@ -116,6 +129,11 @@ export class FlightScreen implements Screen {
     }
 
     const t = this.flight.telemetry;
+
+    // 위협 → 신호 순서가 중요하다. 재밍 감쇠가 같은 프레임의 신호 계산에 실려야
+    // 돔 경계에서 화면이 한 프레임 늦게 무너지지 않는다.
+    if (!this.crashReason) this.updateThreats(dt, t.agl, t.spd);
+
     this.followCamera();
     this.followSun();
 
@@ -125,7 +143,7 @@ export class FlightScreen implements Screen {
       {
         distance: Math.hypot(t.pos.x, t.pos.z),
         losBlocked: this.los.blocked,
-        jammed: false, // 재밍은 T7 위협 프레임워크에서 붙는다
+        jam: this.threatFrame.jam,
         falloff: POSTFX.falloff,
       },
       dt,
@@ -157,6 +175,13 @@ export class FlightScreen implements Screen {
       // 아케이드만 목표 고도가 있다 — 프로는 조종사가 직접 잡는다
       targetAltitude: this.flight.targetAltitude ?? null,
       camMode: CAM_MODE_LABEL[state.camMode],
+      threat: this.threatFrame.warning
+        ? {
+            token: this.threatFrame.warning.id,
+            distance: this.threatFrame.warning.distance,
+            armed: this.threatFrame.warning.armed,
+          }
+        : null,
       losBlocked: this.los.blocked > 0.5,
       linkDown: this.crashReason !== null,
       elapsedSec: this.elapsed,
@@ -164,7 +189,41 @@ export class FlightScreen implements Screen {
     });
     // 왜곡 계수는 셰이더가 받은 그 값을 그대로 넘긴다 (07 문서 2.4)
     this.targets?.update(this.world.targets, renderer.camera, t.pos, renderer.params.distort);
+    this.threatMarkers?.update(this.threats.threats, renderer.camera, renderer.params.distort);
     this.pads?.update();
+  }
+
+  /**
+   * 위협 갱신. 예고 전이만 EventBus 로 알린다 — 매 프레임 쏘면 로그가 잠긴다.
+   * 격추 판정은 러너가 0.5초 계약을 통과시킨 것만 온다 (GDD 4.5 규칙 1).
+   */
+  private updateThreats(dt: number, agl: number, speed: number): void {
+    const previous = this.threatFrame.warning;
+    const frame = this.threats.update({ pos: this.flight.telemetry.pos, agl, speed, dt });
+    this.threatFrame = frame;
+
+    const bus = this.ctx.bus;
+    const now = frame.warning;
+    if (now && (!previous || previous.id !== now.id || previous.kind !== now.kind || previous.armed !== now.armed)) {
+      bus.emit('threat:telegraph', {
+        id: now.id, kind: now.kind, progress: now.progress, distance: now.distance, armed: now.armed,
+      });
+      // 조준이 걸리면 손으로도 알린다. 폰에서는 이쪽이 더 빨리 읽힌다
+      if (now.kind === 'aim') this.ctx.platform.vibrate([40]);
+    } else if (!now && previous) {
+      bus.emit('threat:cleared', { id: previous.id });
+    }
+
+    if (frame.kill) {
+      bus.emit('threat:hit', {
+        id: frame.kill.threatId,
+        causeKey: frame.kill.causeKey,
+        agl: frame.kill.agl,
+        adviceKey: frame.kill.adviceKey,
+        adviceParams: frame.kill.adviceParams,
+      });
+      this.crash('피격');
+    }
   }
 
   private followCamera(): void {
@@ -206,6 +265,8 @@ export class FlightScreen implements Screen {
     this.battery.reset();
     this.signal.reset();
     this.los.reset();
+    this.threats.reset();
+    this.threatFrame = { jam: 0, kill: null, warning: null, warnings: [] };
     for (const m of Object.values(this.models)) m.reset(this.spawnPoint, Math.PI);
     this.ctx.bus.emit('flight:spawned');
   }
@@ -243,6 +304,20 @@ export class FlightScreen implements Screen {
   }
   calmWind(): void {
     this.wind.calm();
+  }
+  /** 테스트·디버그 — 위협 프레임과 계약 위반 기록 */
+  get threatState(): {
+    warning: ThreatFrame['warning'];
+    warnings: ThreatFrame['warnings'];
+    jam: number;
+    violations: readonly string[];
+  } {
+    return {
+      warning: this.threatFrame.warning,
+      warnings: this.threatFrame.warnings,
+      jam: this.threatFrame.jam,
+      violations: this.threats.violations,
+    };
   }
   get renderInfo(): { calls: number; triangles: number } {
     return this.ctx.renderer.info;

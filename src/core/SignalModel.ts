@@ -15,8 +15,12 @@ export interface SignalInputs {
   distance: number;
   /** 가시선 차폐 정도 0~1 */
   losBlocked: number;
-  /** 재밍 소스가 걸려 있는가 */
-  jammed: boolean;
+  /**
+   * 재밍 강도 0~1. **1 이면 프로토타입의 boolean 재밍과 정확히 같은 값이 나온다**
+   * (`SIGNAL.jammed` 를 그대로 곱한다). 상수를 바꾼 것이 아니라 사이를 채운 것 —
+   * B1 재밍 돔은 경계에서 서서히 무너져야 "고장"이 아니라 "재밍"으로 읽힌다.
+   */
+  jam: number;
   /** 거리 감쇠 배율 (튜닝 파라미터 falloff) */
   falloff: number;
 }
@@ -36,11 +40,11 @@ export class SignalModel {
 
   /** 계산식은 프로토타입 v0.7 그대로. 상수는 `src/data/render.ts` 의 SIGNAL. */
   update(inputs: SignalInputs, dt: number, freezeAmt: number): void {
-    const { distance, losBlocked, jammed, falloff } = inputs;
+    const { distance, losBlocked, jam, falloff } = inputs;
 
     let sig = 1 - Math.max(0, distance - SIGNAL.falloffStart_m) / (900 / Math.max(0.2, falloff));
     sig += losBlocked * SIGNAL.losBlocked;
-    if (jammed) sig += SIGNAL.jammed;
+    sig += SIGNAL.jammed * Math.max(0, Math.min(1, jam));
     this.raw = Math.max(0.05, Math.min(1, sig));
 
     // 급변을 막아 화면이 튀지 않게 한다.

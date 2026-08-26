@@ -313,3 +313,128 @@ test('T6 카메라 모드 — BW → COLOR → THRM 순환과 스크린샷 3장'
   await page.locator('.hud-btn[data-c="cam"]').click();
   expect(await page.evaluate(() => window.__debug.flight.camMode())).toBe('bw');
 });
+
+/**
+ * T7 완료 조건: 위협이 미션 코드가 아니라 `mission/threats` 에만 있고,
+ * **모든 위협이 피격 0.5초 전 예고를 낸다** (GDD 4.5 규칙 1).
+ * 계약 자체는 `tests/threats.spec.ts` 가 헤드리스로 강제한다. 여기서는
+ * 그 계약이 **실제 화면까지 배선되어 있는지**를 본다.
+ */
+test('T7 위협 — 조준 예고가 화면에 먼저 뜨고, 그 뒤에 격추된다', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForFunction(() => window.__debug?.ready === true, null, { timeout: 60_000 });
+  await page.evaluate(() => {
+    window.__debug.flight.setWindCalm();
+    window.__debug.flight.respawn();
+  });
+
+  // A1 은 (104, -150). 위험 반경(50m) 밖 · 탐지 반경(95m) 안에 먼저 선다.
+  await page.evaluate(async () => {
+    const t = window.__debug.flight.telemetry();
+    t.pos.set(104, t.pos.y, -80);
+    t.vel.set(0, 0, 0);
+    t.yaw = 0;
+    const n = window.__debug.frame + 3;
+    while (window.__debug.frame < n) await new Promise((r) => requestAnimationFrame(r));
+  });
+
+  // 이 지점은 B1 재밍 돔 안이기도 하다 — HUD 한 줄은 더 급한 쪽을 고르므로 목록을 본다.
+  const outer = await page.evaluate(() => window.__debug.flight.threats());
+  const a1 = outer.warnings.find((w) => w.id === 'A1');
+  expect(a1, '탐지 반경 안인데 아무 표시가 없다').toBeTruthy();
+  expect(a1!.kind, '위험 반경 밖인데 조준이 걸렸다').toBe('watch');
+
+  // 위험 반경 안으로 들어가 조준 예고가 뜬 상태를 남긴다 — 화면에 안 보이면 예고가 없는 것이다.
+  await page.evaluate(async () => {
+    for (let i = 0; i < 3; i++) {
+      const t = window.__debug.flight.telemetry();
+      t.pos.set(104, t.pos.y + (14 - t.agl), -128);
+      t.vel.set(0, 0, 0);
+      await new Promise((r) => requestAnimationFrame(r));
+    }
+  });
+  expect(
+    await page.locator('.threat-overlay polygon').count(),
+    '조준 중인데 화면에 마커가 없다',
+  ).toBeGreaterThan(0);
+  await page.screenshot({ path: 'tests/__screenshots__/t7-telegraph.png' });
+
+  // 스크린샷은 이 컨테이너에서 수 초가 걸린다(소프트 렌더). 그동안 조준이 끝나 버리므로
+  // 계약 측정은 **깨끗한 상태에서 다시** 한다.
+  await page.evaluate(() => window.__debug.flight.respawn());
+
+  /**
+   * 매 프레임 예고를 기록한다.
+   * 컨테이너 fps 가 ~1 이라 "몇 프레임 뒤"로는 계약을 잴 수 없다 — **예고 누적 시간**을 본다.
+   */
+  const log = await page.evaluate(async () => {
+    const samples: { kind: string; elapsed: number; armed: boolean }[] = [];
+    const deadline = window.__debug.frame + 300;
+    while (window.__debug.frame < deadline && !window.__debug.flight.crashed()) {
+      const t = window.__debug.flight.telemetry();
+      t.pos.set(104, t.pos.y + (14 - t.agl), -128); // 반경 안 · 노출 고도 유지
+      t.vel.set(0, 0, 0);
+      await new Promise((r) => requestAnimationFrame(r));
+      const w = window.__debug.flight.threats().warnings.find((x) => x.id === 'A1');
+      if (w) samples.push({ kind: w.kind, elapsed: w.elapsed, armed: w.armed });
+    }
+    return {
+      samples,
+      crashed: window.__debug.flight.crashed(),
+      violations: window.__debug.flight.threats().violations,
+    };
+  });
+
+  expect(log.crashed, '조준이 끝났는데 격추되지 않았다').toBe('피격');
+  expect(log.violations, `예고 계약 위반:\n${log.violations.join('\n')}`).toEqual([]);
+
+  const aims = log.samples.filter((s) => s.kind === 'aim');
+  expect(aims.length, '조준 예고가 한 프레임도 안 떴다').toBeGreaterThan(0);
+  // ① 예고가 먼저 뜬다 — 계약 성립 전 프레임이 존재해야 한다
+  expect(aims.some((s) => !s.armed), '들어서자마자 격추 가능 상태였다 — 예고 시간이 없다').toBe(true);
+  // ② 격추 시점의 예고 누적 시간이 계약을 넘는다
+  const last = aims[aims.length - 1];
+  expect(last.elapsed, `격추 직전 예고가 ${last.elapsed.toFixed(2)}초뿐이다`).toBeGreaterThanOrEqual(0.5);
+  await page.screenshot({ path: 'tests/__screenshots__/t7-hit.png' });
+});
+
+test('T7 위협 — B1 재밍 돔이 실제로 신호를 깎는다', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForFunction(() => window.__debug?.ready === true, null, { timeout: 60_000 });
+
+  const settle = async (x: number, z: number) => {
+    await page.evaluate(
+      async ([px, pz]) => {
+        window.__debug.flight.setWindCalm();
+        window.__debug.flight.respawn();
+        const t = window.__debug.flight.telemetry();
+        // 200m 상공 — 신호에는 거리·LOS 차폐·재밍 셋이 섞인다. 높이 띄워 차폐를 지워야
+        // 두 지점의 차이가 **재밍 기여분**만 남는다.
+        t.pos.set(px, t.pos.y + 200, pz);
+        t.vel.set(0, 0, 0);
+        // 신호는 평활화되므로 여러 프레임 굴려야 값이 자리 잡는다
+        const n = window.__debug.frame + 25;
+        while (window.__debug.frame < n) {
+          window.__debug.flight.telemetry().vel.set(0, 0, 0);
+          await new Promise((r) => requestAnimationFrame(r));
+        }
+      },
+      [x, z] as const,
+    );
+    return page.evaluate(() => ({
+      jam: window.__debug.flight.threats().jam,
+      signal: Number(window.__debug.state.signalQuality),
+    }));
+  };
+
+  // B1 은 (60, -80), 반경 135m. 코어 안 vs 한참 밖을 비교한다.
+  // 조종소(원점)에서 **같은 거리**인 두 점을 고른다. 멀리 나가 비교하면
+  // 거리 감쇠가 섞여서 재밍 기여분을 못 본다.
+  const inside = await settle(60, -80);
+  const outside = await settle(-60, 80);
+
+  expect(inside.jam, '돔 코어인데 재밍이 안 걸린다').toBeGreaterThan(0.9);
+  expect(outside.jam, '돔 밖인데 재밍이 걸린다').toBe(0);
+  expect(outside.signal, '차폐가 남아 있다 — 비교 조건이 성립하지 않는다').toBeGreaterThan(0.9);
+  expect(inside.signal, '재밍이 신호를 깎지 않는다 — 배선이 끊겼다').toBeLessThan(outside.signal - 0.2);
+});

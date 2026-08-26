@@ -20,7 +20,7 @@ export interface DroneTelemetry {
   roll: number;
 }
 
-export type CrashReason = '지면 충돌' | '구조물 충돌' | '배터리 소진';
+export type CrashReason = '지면 충돌' | '구조물 충돌' | '배터리 소진' | '피격';
 
 export interface FlightContext {
   heightAt(x: number, z: number): number;

@@ -53,3 +53,6 @@ ui.pad.back,후진,BACK
 ui.pad.left,◀좌,◀LEFT
 ui.pad.right,우▶,RIGHT▶
 ui.cam.cycle,화면,VIEW
+threat.a1.name,산탄총,SHOTGUN
+threat.a1.advice,고도 {0}m 이상 또는 {1}m 이하로 통과,PASS ABOVE {0}m OR BELOW {1}m
+threat.b1.name,재밍 돔,JAMMER DOME

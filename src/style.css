@@ -161,7 +161,8 @@ html, body {
    배경판·테두리 상자 없음. 텍스트에 얇은 검정 외곽선만.
    좌표는 코너에 흩어진다 — 좌상에 몰지 않는다. */
 .hud-reticle,
-.target-overlay {
+.target-overlay,
+.threat-overlay {
   position: absolute;
   inset: 0;
   width: 100%;

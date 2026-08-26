@@ -24,6 +24,15 @@ export interface DebugApi {
   flight: FlightDebugApi;
 }
 
+interface ThreatWarningView {
+  id: string;
+  kind: string;
+  progress: number;
+  distance: number;
+  elapsed: number;
+  armed: boolean;
+}
+
 export interface FlightDebugApi {
   mode(): 'arcade' | 'pro';
   setMode(mode: 'arcade' | 'pro'): void;
@@ -32,6 +41,14 @@ export interface FlightDebugApi {
   crashed(): string | null;
   respawn(): void;
   camMode(): string;
+  /** 위협 상태 — 예고 하나 + 재밍 강도 + 계약 위반 기록 (GDD 4.5 규칙 1) */
+  threats(): {
+    warning: ThreatWarningView | null;
+    /** 예고 중인 위협 전부 — HUD 는 하나만 고르지만 테스트는 전부 본다 */
+    warnings: ThreatWarningView[];
+    jam: number;
+    violations: readonly string[];
+  };
   setCamMode(mode: 'bw' | 'color' | 'thermal'): void;
   cycleCamMode(): void;
   /** 테스트 재현성을 위해 바람을 끈다. */
@@ -93,6 +110,7 @@ export function installDebug(app: App, flight: FlightScreen): DebugApi {
       crashed: () => flight.crashed,
       respawn: () => flight.spawn(),
       camMode: () => state.camMode,
+      threats: () => flight.threatState,
       setCamMode: (m) => flight.setCamMode(m),
       cycleCamMode: () => flight.cycleCamMode(),
       setWindCalm: () => flight.calmWind(),

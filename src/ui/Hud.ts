@@ -21,6 +21,8 @@ export interface HudState {
   /** 아케이드의 목표 고도. 프로 모드면 null */
   targetAltitude: number | null;
   camMode: string;
+  /** 가장 급한 위협 예고. 없으면 null (GDD 4.5 규칙 1 — 예고는 반드시 보여야 한다) */
+  threat: { token: string; distance: number; armed: boolean } | null;
   losBlocked: boolean;
   linkDown: boolean;
   elapsedSec: number;
@@ -113,10 +115,18 @@ export class Hud {
     const battClass = lowBattery ? (Math.floor(performance.now() / 400) % 2 ? 'red' : 'dim') : 'wht';
     const status = s.linkDown ? 'NO LINK' : s.losBlocked ? 'LOS BLOCK' : 'READY';
 
+    // 위협 예고 — 조준(armed) 중에는 깜빡인다. 06 문서 원칙 ⑤: 라벨 없이 코드와 거리만.
+    const threat = s.threat
+      ? `<br><span class="${
+          s.threat.armed ? (Math.floor(performance.now() / 200) % 2 ? 'red' : 'dim') : 'amb'
+        }">${s.threat.token} ${s.threat.distance.toFixed(0)}M</span>`
+      : '';
+
     this.cells.status.innerHTML =
       `<span class="wht">${status}</span><br>` +
       `<span class="wht">AIR</span><br>` +
-      `<span class="${battClass}">${volts}V</span>`;
+      `<span class="${battClass}">${volts}V</span>` +
+      threat;
 
     // 신호 막대 — 라벨 없이 기호만 (06 문서 원칙 ⑤)
     const bars = '▂▄▆█'.slice(0, Math.round(s.signal * 4)) || '·';
