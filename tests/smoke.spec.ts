@@ -273,3 +273,43 @@ test('스크립트 입력이 사람 입력과 같은 자리에 꽂힌다', async
   const input = await page.evaluate(() => window.__debug.state.input);
   expect(input).toMatchObject({ pitch: 1, yaw: -0.5, roll: 0, throttle: 0, fire: false });
 });
+
+/**
+ * T6 완료 조건: 카메라 모드 3종이 실제로 돌고, 열화상에서 하늘·물이 어둡고
+ * 엔진부가 백열로 뜬다. 스크린샷 3장은 **눈으로 확인해야 한다** (CLAUDE.md 검증).
+ */
+test('T6 카메라 모드 — BW → COLOR → THRM 순환과 스크린샷 3장', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForFunction(() => window.__debug?.ready === true, null, { timeout: 60_000 });
+  await page.evaluate(() => {
+    window.__debug.flight.setWindCalm();
+    window.__debug.flight.respawn();
+  });
+
+  // 트럭 앞 42m — 열원(엔진 0.98)이 화면에 있어야 4단 구조를 눈으로 볼 수 있다.
+  await page.evaluate(async () => {
+    const t = window.__debug.flight.telemetry();
+    t.pos.set(120, 14, -178);
+    t.vel.set(0, 0, 0);
+    t.yaw = 0;
+    const n = window.__debug.frame + 3;
+    while (window.__debug.frame < n) await new Promise((r) => requestAnimationFrame(r));
+  });
+
+  const hud = page.locator('#hud');
+  for (const [mode, label] of [
+    ['bw', 'BW'],
+    ['color', 'COLOR'],
+    ['thermal', 'THRM'],
+  ] as const) {
+    await page.evaluate((m) => window.__debug.flight.setCamMode(m), mode);
+    // 모드 표기가 HUD 에 실제로 반영되는지 — 상태만 바뀌고 화면이 그대로면 여기서 걸린다.
+    await expect(hud).toContainText(label, { timeout: 30_000 });
+    expect(await page.evaluate(() => window.__debug.flight.camMode())).toBe(mode);
+    await page.screenshot({ path: `tests/__screenshots__/t6-${mode}.png` });
+  }
+
+  // 버튼 한 번 = 한 칸 순환 (thermal → bw 로 돌아온다)
+  await page.locator('.hud-btn[data-c="cam"]').click();
+  expect(await page.evaluate(() => window.__debug.flight.camMode())).toBe('bw');
+});

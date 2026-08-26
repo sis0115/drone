@@ -5,6 +5,7 @@ import { terrainH } from './Terrain';
 import { buildInstanced, type InstanceSpec } from './Instancing';
 import type { ThermalRegistry } from './ThermalRegistry';
 import type { AoCollector } from './Ao';
+import { HEAT } from '@/data/thermal';
 
 /**
  * 소품 — 건물·연료탱크·송전탑·가드레일·전신주·건초·바위·통나무.
@@ -44,14 +45,14 @@ export function buildProps(scene: THREE.Scene, registry: ThermalRegistry, ao: Ao
   for (let z = -680; z < 680; z += 8)
     for (const o of [-8.4, 8.4])
       rails.push({ p: [120 + o, terrainH(120 + o, z) + 0.8, z], r: [0, 0, 0], s: [1, 1, 1], c: 0xcfd2c6 });
-  buildInstanced(new THREE.BoxGeometry(0.35, 0.8, 7.2), white(), rails, { heat: 0.72, ...opts });
+  buildInstanced(new THREE.BoxGeometry(0.35, 0.8, 7.2), white(), rails, { heat: HEAT.rail, ...opts });
 
   buildPowerLine(scene, registry);
   buildHaystacks(scene, registry);
 
-  const pad = registry.register(
+  const pad = registry.registerAs(
     new THREE.Mesh(new THREE.PlaneGeometry(11, 11), new THREE.MeshLambertMaterial({ color: 0x8a8f6b })),
-    0.66,
+    'pad',
   );
   pad.rotation.x = -Math.PI / 2;
   pad.position.set(0, terrainH(0, 0) + 0.09, 0);
@@ -77,7 +78,7 @@ function buildRocks(scene: THREE.Scene, registry: ThermalRegistry): void {
   }
   const mat = new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 0, flatShading: true });
   for (let b = 0; b < 4; b++) {
-    buildInstanced(rockGeo(1.0 + b * 0.35), mat, buckets[b], { heat: 0.52, registry, scene });
+    buildInstanced(rockGeo(1.0 + b * 0.35), mat, buckets[b], { heat: HEAT.rock, registry, scene });
   }
 }
 
@@ -117,7 +118,7 @@ function buildLogs(scene: THREE.Scene, registry: ThermalRegistry): void {
     new THREE.CylinderGeometry(0.55, 0.68, 6, 6),
     new THREE.MeshLambertMaterial({ color: 0xffffff }),
     list,
-    { heat: 0.44, registry, scene },
+    { heat: HEAT.log, registry, scene },
   );
 }
 
@@ -160,7 +161,7 @@ function buildHouses(
       const rw = Math.hypot(w / 2, w * 0.34);
       const roof = registry.register(
         new THREE.Mesh(new THREE.CylinderGeometry(rw, rw, d * 1.06, 3), ROOF[kind === 1 ? 1 : 0]),
-        kind === 1 ? 0.7 : 0.68,
+        kind === 1 ? HEAT.roofMetal : HEAT.roof,
       );
       roof.rotation.x = -Math.PI / 2;
       roof.scale.set(1, 1, 0.66);
@@ -201,11 +202,11 @@ function buildHouses(
 
   const opts = { registry, scene };
   buildInstanced(new THREE.BoxGeometry(0.8, 2.2, 0.8), new THREE.MeshLambertMaterial({ color: 0xffffff }), chimneys, {
-    heat: 0.78,
+    heat: HEAT.chimney,
     ...opts,
   });
   buildInstanced(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshLambertMaterial({ color: 0xffffff }), rubble, {
-    heat: 0.72,
+    heat: HEAT.rubble,
     ...opts,
   });
 }
@@ -232,7 +233,7 @@ function buildFuelTanks(scene: THREE.Scene, registry: ThermalRegistry, obstacles
     new THREE.CylinderGeometry(1, 1, 9, 14),
     new THREE.MeshLambertMaterial({ color: 0xffffff }),
     list,
-    { heat: 0.56, registry, scene },
+    { heat: HEAT.silo, registry, scene },
   );
 }
 
@@ -251,7 +252,7 @@ function buildPylons(scene: THREE.Scene, registry: ThermalRegistry, obstacles: O
     });
   }
   buildInstanced(new THREE.BoxGeometry(2, 36, 2), new THREE.MeshLambertMaterial({ color: 0xffffff }), list, {
-    heat: 0.62,
+    heat: HEAT.pylon,
     registry,
     scene,
   });
@@ -285,13 +286,13 @@ function buildPowerLine(scene: THREE.Scene, registry: ThermalRegistry): void {
     new THREE.CylinderGeometry(0.18, 0.26, 9, 6),
     new THREE.MeshLambertMaterial({ color: 0xffffff }),
     poles,
-    { heat: 0.5, ...opts },
+    { heat: HEAT.pole, ...opts },
   );
   buildInstanced(
     new THREE.BoxGeometry(2.4, 0.16, 0.16),
     new THREE.MeshLambertMaterial({ color: 0xffffff }),
     arms,
-    { heat: 0.5, shadow: false, ...opts },
+    { heat: HEAT.pole, shadow: false, ...opts },
   );
 
   // C1 위협(전선줄)의 시각적 실체. 저화질 화면에서 거의 안 보이는 것이 의도다.
@@ -321,6 +322,6 @@ function buildHaystacks(scene: THREE.Scene, registry: ThermalRegistry): void {
     new THREE.CylinderGeometry(1, 1, 1.7, 10),
     new THREE.MeshLambertMaterial({ color: 0xffffff }),
     list,
-    { heat: 0.8, registry, scene },
+    { heat: HEAT.hay, registry, scene },
   );
 }

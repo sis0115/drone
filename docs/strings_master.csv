@@ -52,3 +52,4 @@ ui.pad.forward,전진,FWD
 ui.pad.back,후진,BACK
 ui.pad.left,◀좌,◀LEFT
 ui.pad.right,우▶,RIGHT▶
+ui.cam.cycle,화면,VIEW

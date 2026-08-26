@@ -31,6 +31,9 @@ export interface FlightDebugApi {
   battery(): number;
   crashed(): string | null;
   respawn(): void;
+  camMode(): string;
+  setCamMode(mode: 'bw' | 'color' | 'thermal'): void;
+  cycleCamMode(): void;
   /** 테스트 재현성을 위해 바람을 끈다. */
   setWindCalm(): void;
 }
@@ -89,6 +92,9 @@ export function installDebug(app: App, flight: FlightScreen): DebugApi {
       battery: () => flight.batteryLevel,
       crashed: () => flight.crashed,
       respawn: () => flight.spawn(),
+      camMode: () => state.camMode,
+      setCamMode: (m) => flight.setCamMode(m),
+      cycleCamMode: () => flight.cycleCamMode(),
       setWindCalm: () => flight.calmWind(),
     },
   };

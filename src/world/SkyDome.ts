@@ -6,7 +6,13 @@ import * as THREE from 'three';
  * `world/` 에 있다 — 렌더러가 아니라 **씬의 오브젝트**이기 때문이다.
  * `render/` 에 두면 world → render 의존이 생겨 헤드리스 씬 검사가 깨진다.
  */
-export function createSkyDome(): THREE.Mesh {
+export interface SkyDome {
+  mesh: THREE.Mesh;
+  /** 카메라 모드에 따라 하늘색을 갈아 끼운다 (열화상에서 하늘은 거의 순흑). */
+  setColors(top: number, horizon: number): void;
+}
+
+export function createSkyDome(): SkyDome {
   const material = new THREE.ShaderMaterial({
     uniforms: {
       cTop: { value: new THREE.Color(0x4d7ea8) },
@@ -25,5 +31,12 @@ export function createSkyDome(): THREE.Mesh {
     fog: false,
     depthWrite: false,
   });
-  return new THREE.Mesh(new THREE.SphereGeometry(1000, 16, 10), material);
+  const mesh = new THREE.Mesh(new THREE.SphereGeometry(1000, 16, 10), material);
+  return {
+    mesh,
+    setColors(top, horizon) {
+      (material.uniforms.cTop.value as THREE.Color).setHex(top);
+      (material.uniforms.cHor.value as THREE.Color).setHex(horizon);
+    },
+  };
 }

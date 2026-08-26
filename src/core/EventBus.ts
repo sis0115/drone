@@ -11,6 +11,7 @@ export interface GameEvents {
   'flight:crashed': { reason: string };
   'flight:spawned': void;
   'flight:mode-changed': { mode: 'arcade' | 'pro' };
+  'cam:mode-changed': { mode: 'bw' | 'color' | 'thermal' };
   /** 돌풍 예고 — GDD 4.5 규칙 1: 모든 위협은 예고된다. */
   'wind:gust': { strength: number };
   'signal:changed': { quality: number };

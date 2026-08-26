@@ -25,11 +25,16 @@ export class KeyboardInput implements InputSource {
     this.target.addEventListener('keyup', this.onUp as EventListener);
   }
 
+  /** 축이 아닌 단발 키(모드 전환 등)를 받는다. */
+  onAction: ((code: string) => void) | null = null;
+
   private readonly onDown = (e: KeyboardEvent) => {
     if (MAP[e.code] || e.code === 'Space') {
       this.down.add(e.code);
       e.preventDefault();
+      return;
     }
+    if (!e.repeat) this.onAction?.(e.code);
   };
 
   private readonly onUp = (e: KeyboardEvent) => {

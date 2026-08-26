@@ -4,6 +4,7 @@ import { terrainH } from './Terrain';
 import { rnd } from './noise';
 import type { InstanceSpec } from './Instancing';
 import type { ThermalRegistry } from './ThermalRegistry';
+import { HEAT } from '@/data/thermal';
 
 /**
  * 접지 그늘(AO 패치). 나무·건물이 각자 요청을 쌓아 두고,
@@ -49,6 +50,9 @@ export class AoCollector {
       normal: mat,
       thermal: new THREE.MeshBasicMaterial({
         map: tex,
+        // 색을 빼면 THREE.Color 기본값이 흰색(1,1,1) — 접지 그늘이 트럭 엔진과
+        // 똑같은 백열로 떠서 4단 구조가 무너진다. 그늘은 지면보다 차가워야 한다.
+        color: new THREE.Color(HEAT.shade, HEAT.shade, HEAT.shade),
         transparent: true,
         depthWrite: false,
         opacity: 0.5,

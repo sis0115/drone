@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { ThermalRegistry } from './ThermalRegistry';
-import { createSkyDome } from './SkyDome';
+import { createSkyDome, type SkyDome } from './SkyDome';
 import { buildTerrain, terrainH, type TerrainHandles } from './Terrain';
 import { FOG } from '@/data/render';
 import { buildVegetation, type VegetationHandles } from './Vegetation';
@@ -28,17 +28,23 @@ export interface World {
   sun: THREE.DirectionalLight;
   /** 표적 — HUD 오버레이와 미션 판정이 읽는다 */
   targets: Target[];
+  /** 카메라 모드 전환이 색을 갈아 끼운다 */
+  sky: SkyDome;
+  hemi: THREE.HemisphereLight;
+  fog: THREE.Fog;
   heightAt(x: number, z: number): number;
 }
 
 export function buildWorld(): World {
   const scene = new THREE.Scene();
-  scene.fog = new THREE.Fog(FOG.color, FOG.near, FOG.far);
+  const fog = new THREE.Fog(FOG.color, FOG.near, FOG.far);
+  scene.fog = fog;
 
   const registry = new ThermalRegistry();
 
-  scene.add(createSkyDome());
-  addAmbient(scene);
+  const sky = createSkyDome();
+  scene.add(sky.mesh);
+  const hemi = addAmbient(scene);
 
   const sun = addSun(scene);
 
@@ -60,6 +66,9 @@ export function buildWorld(): World {
     props,
     sun,
     targets,
+    sky,
+    hemi,
+    fog,
     obstacles: props.obstacles,
     heightAt: terrainH,
   };
@@ -74,8 +83,10 @@ export function buildWorld(): World {
  */
 const LIGHT_SCALE = Math.PI;
 
-function addAmbient(scene: THREE.Scene): void {
-  scene.add(new THREE.HemisphereLight(0xbcd4e6, 0x4a5236, 1.05 * LIGHT_SCALE));
+function addAmbient(scene: THREE.Scene): THREE.HemisphereLight {
+  const hemi = new THREE.HemisphereLight(0xbcd4e6, 0x4a5236, 1.05 * LIGHT_SCALE);
+  scene.add(hemi);
+  return hemi;
 }
 
 function addSun(scene: THREE.Scene): THREE.DirectionalLight {

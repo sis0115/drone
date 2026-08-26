@@ -1,5 +1,5 @@
 import { Vector3 } from 'three';
-import type { ScreenName } from '@/core/GameState';
+import type { CamMode, ScreenName } from '@/core/GameState';
 import { buildWorld, type World } from '@/world/SceneBuilder';
 import { SignalModel } from '@/core/SignalModel';
 import { LineOfSight } from '@/core/LineOfSight';
@@ -12,6 +12,7 @@ import { DEFAULT as POSTFX } from '@/data/postfx';
 import { Hud } from '@/ui/Hud';
 import { TargetOverlay } from '@/ui/TargetOverlay';
 import { updateTargets } from '@/world/Targets';
+import { CAM_MODE_LABEL, THERMAL_UNIFORM, applyCameraMode, nextCamMode } from '@/world/CameraMode';
 import { PadOverlay } from '@/ui/PadOverlay';
 import type { InputFrame } from '@/input/InputSource';
 import type { AppContext, Screen } from '../Screen';
@@ -67,10 +68,17 @@ export class FlightScreen implements Screen {
     this.flight = this.models[ctx.state.flightMode];
 
     this.hudRoot = document.createElement('div');
-    this.hudRoot.id = 'hud';
+    this.hudRoot.id = 'ingame';
     ctx.overlay.appendChild(this.hudRoot);
     this.hud = new Hud(this.hudRoot);
     this.targets = new TargetOverlay(this.hudRoot);
+    this.hud.onCamCycle(() => this.cycleCamMode());
+    // 데스크톱 단축키: C = 카메라 모드, M = 비행 모드
+    ctx.onKeyAction((code) => {
+      if (code === 'KeyC') this.cycleCamMode();
+      if (code === 'KeyM') this.setMode(this.flight.mode === 'arcade' ? 'pro' : 'arcade');
+    });
+    applyCameraMode(this.world, ctx.state.camMode);
 
     // 가상 패드 — 폰에서 이게 없으면 조작 자체가 불가능하다 (GDD 7장).
     if (ctx.touch) this.pads = new PadOverlay(this.hudRoot, ctx.touch);
@@ -133,7 +141,7 @@ export class FlightScreen implements Screen {
     // 젤로(모터 진동)·모션블러는 속도에 비례한다.
     u.uJello.value = Math.min(1, t.spd / 20);
     u.uMotion.value = Math.min(1, t.spd / 26);
-    u.uThermal.value = state.camMode === 'thermal' ? 2 : state.camMode === 'color' ? 1 : 0;
+    u.uThermal.value = THERMAL_UNIFORM[state.camMode];
 
     if (this.world.vegetation.windUniform) {
       this.world.vegetation.windUniform.value = time.elapsed;
@@ -148,7 +156,7 @@ export class FlightScreen implements Screen {
       speed: t.spd * 3.6,
       // 아케이드만 목표 고도가 있다 — 프로는 조종사가 직접 잡는다
       targetAltitude: this.flight.targetAltitude ?? null,
-      camMode: state.camMode.toUpperCase(),
+      camMode: CAM_MODE_LABEL[state.camMode],
       losBlocked: this.los.blocked > 0.5,
       linkDown: this.crashReason !== null,
       elapsedSec: this.elapsed,
@@ -200,6 +208,17 @@ export class FlightScreen implements Screen {
     this.los.reset();
     for (const m of Object.values(this.models)) m.reset(this.spawnPoint, Math.PI);
     this.ctx.bus.emit('flight:spawned');
+  }
+
+  /** 흑백 → 컬러 → 열화상 순환 (GDD 4장 시야 제약 / 06 문서 1.1). */
+  cycleCamMode(): void {
+    this.setCamMode(nextCamMode(this.ctx.state.camMode));
+  }
+
+  setCamMode(mode: CamMode): void {
+    this.ctx.state.camMode = mode;
+    applyCameraMode(this.world, mode);
+    this.ctx.bus.emit('cam:mode-changed', { mode });
   }
 
   setMode(mode: 'arcade' | 'pro'): void {

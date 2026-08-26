@@ -41,9 +41,13 @@ export class App {
     setLocale(state.profile.settings.lang as Locale);
 
     this.renderer = new FpvRenderer(canvas);
+    this.keyboard.onAction = (code) => this.onKeyAction?.(code);
     window.addEventListener('resize', this.onResize);
     this.onResize();
   }
+
+  /** 단발 키 액션(모드 전환 등). 현재 화면이 처리한다. */
+  onKeyAction: ((code: string) => void) | null = null;
 
   register(screen: Screen): this {
     this.screens.set(screen.name, screen);
@@ -60,6 +64,9 @@ export class App {
       overlay: this.overlay,
       touch: this.touch,
       go: (name) => this.go(name),
+      onKeyAction: (handler) => {
+        this.onKeyAction = handler;
+      },
     };
   }
 
@@ -68,6 +75,7 @@ export class App {
     if (!next || next === this.currentScreen) return;
     const from = this.currentScreen?.name ?? 'none';
     this.currentScreen?.exit();
+    this.onKeyAction = null; // 이전 화면의 구독을 끊는다
     this.currentScreen = next;
     state.screen = name;
     next.enter(this.context);

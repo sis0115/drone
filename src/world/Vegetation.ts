@@ -5,6 +5,7 @@ import { terrainH } from './Terrain';
 import { buildInstanced, type InstanceSpec } from './Instancing';
 import type { ThermalRegistry } from './ThermalRegistry';
 import type { AoCollector } from './Ao';
+import { HEAT } from '@/data/thermal';
 
 /**
  * 식생. 풀 18k×2매 + 덤불 5.2k + 수목 3종이 전부 인스턴싱으로 **6 드로우콜**에 들어간다.
@@ -105,7 +106,7 @@ function buildGrass(
     normal: mat,
     thermal: new THREE.MeshBasicMaterial({
       map: texBlade,
-      color: new THREE.Color(0.4, 0.4, 0.4),
+      color: new THREE.Color(HEAT.grass, HEAT.grass, HEAT.grass),
       side: THREE.DoubleSide,
       transparent: true,
       alphaTest: 0.35,
@@ -149,7 +150,7 @@ function buildBushes(scene: THREE.Scene, registry: ThermalRegistry): THREE.Insta
   bush.receiveShadow = true;
   scene.add(bush);
 
-  registry.register(bush, 0.32);
+  registry.registerAs(bush, 'bush');
   return bush;
 }
 
@@ -229,13 +230,16 @@ function buildTrees(scene: THREE.Scene, registry: ThermalRegistry, ao: AoCollect
 
   const opts = { registry, scene };
   const white = () => new THREE.MeshLambertMaterial({ color: 0xffffff });
-  buildInstanced(new THREE.CylinderGeometry(0.26, 0.62, 7, 6), white(), trunks, { heat: 0.42, ...opts });
+  buildInstanced(new THREE.CylinderGeometry(0.26, 0.62, 7, 6), white(), trunks, { heat: HEAT.trunk, ...opts });
   buildInstanced(
     new THREE.IcosahedronGeometry(1, 0),
     new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 0, flatShading: true }),
     crowns,
-    { heat: 0.34, ...opts },
+    { heat: HEAT.canopy, ...opts },
   );
-  buildInstanced(new THREE.CylinderGeometry(0.16, 0.5, 8, 6), white(), dead, { heat: 0.46, ...opts });
-  buildInstanced(new THREE.CylinderGeometry(0.07, 0.16, 3.4, 4), white(), branches, { heat: 0.46, ...opts });
+  buildInstanced(new THREE.CylinderGeometry(0.16, 0.5, 8, 6), white(), dead, { heat: HEAT.deadwood, ...opts });
+  buildInstanced(new THREE.CylinderGeometry(0.07, 0.16, 3.4, 4), white(), branches, {
+    heat: HEAT.deadwood,
+    ...opts,
+  });
 }

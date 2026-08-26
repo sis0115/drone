@@ -44,7 +44,7 @@ html, body {
 }
 
 #overlay { position: absolute; inset: 0; pointer-events: none; }
-#hud, #boot { position: absolute; inset: 0; pointer-events: none; }
+#hud, #ingame, #boot { position: absolute; inset: 0; pointer-events: none; }
 
 .hud-corner {
   position: absolute;
@@ -203,4 +203,28 @@ html, body {
   padding: 0 5px;
   margin-left: 5px;
   color: var(--c-text-primary);
+}
+
+/* 카메라 모드 전환 — 폰에는 키보드가 없다. 04 문서: 채우기 없는 사각 테두리. */
+.hud-btn {
+  position: absolute;
+  top: calc(2.2vh + var(--sat));
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: auto;
+  background: transparent;
+  border: 1px solid var(--c-line);
+  border-radius: 0;
+  color: var(--c-text-dim);
+  font-family: var(--font-mono);
+  font-size: clamp(9px, 1.4vw, 13px);
+  letter-spacing: 0.12em;
+  padding: 0.5vh 2vw;
+  cursor: pointer;
+}
+.hud-btn:active,
+.hud-btn:focus-visible {
+  border-color: var(--c-accent-amber);
+  color: var(--c-accent-amber);
+  outline: none;
 }

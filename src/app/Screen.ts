@@ -35,4 +35,6 @@ export interface AppContext {
   readonly touch: TouchInput;
   /** 화면 전환 요청 */
   go(name: ScreenName): void;
+  /** 단발 키 액션 구독 (모드 전환 등). 화면이 바뀌면 자동으로 해제된다. */
+  onKeyAction(handler: (code: string) => void): void;
 }

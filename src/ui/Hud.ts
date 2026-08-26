@@ -29,10 +29,13 @@ export interface HudState {
 
 const NS = 'http://www.w3.org/2000/svg';
 
+import { t } from '@/i18n';
+
 export class Hud {
   private readonly root: HTMLElement;
   private readonly reticle: SVGSVGElement;
   private readonly cells: Record<string, HTMLElement> = {};
+  private readonly camButton: HTMLElement;
 
   constructor(parent: HTMLElement) {
     this.root = document.createElement('div');
@@ -43,11 +46,14 @@ export class Hud {
       <div class="hud-cell hud-mr" data-c="alt"></div>
       <div class="hud-cell hud-bl" data-c="callsign"></div>
       <div class="hud-cell hud-br" data-c="build"></div>
+      <button class="hud-btn" data-c="cam">${t('ui.cam.cycle')}</button>
     `;
     parent.appendChild(this.root);
     for (const el of this.root.querySelectorAll<HTMLElement>('[data-c]')) {
       this.cells[el.dataset.c!] = el;
     }
+
+    this.camButton = this.root.querySelector('[data-c="cam"]')!;
 
     this.reticle = document.createElementNS(NS, 'svg');
     this.reticle.setAttribute('class', 'hud-reticle');
@@ -94,6 +100,11 @@ export class Hud {
     line(cx, cy - gap - len, cx, cy - gap, false, 1.4, 0.7);
     line(cx, cy + gap, cx, cy + gap + len, false, 1.4, 0.7);
   };
+
+  /** 카메라 모드 전환 진입점. 폰에는 키보드가 없으니 화면에 버튼이 있어야 한다. */
+  onCamCycle(handler: () => void): void {
+    this.camButton.addEventListener('click', handler);
+  }
 
   update(s: HudState): void {
     const volts = (14.0 + 2.8 * (s.batteryPercent / 100)).toFixed(1);

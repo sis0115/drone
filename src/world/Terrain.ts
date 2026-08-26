@@ -134,7 +134,7 @@ function buildDirtPath(
   }
   geo.computeVertexNormals();
 
-  const mesh = registry.register(new THREE.Mesh(geo, texMat(texDirt)), 0.66);
+  const mesh = registry.registerAs(new THREE.Mesh(geo, texMat(texDirt)), 'dirt');
   mesh.rotation.x = -Math.PI / 2;
   mesh.rotation.z = rot;
   mesh.position.set(cx, 0, cz);
