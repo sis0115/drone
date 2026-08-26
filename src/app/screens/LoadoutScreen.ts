@@ -1,6 +1,6 @@
 import type { ScreenName } from '@/core/GameState';
 import { save } from '@/core/Save';
-import { fmt, t } from '@/i18n';
+import { LOCALES, fmt, getLocale, setLocale, t, type Locale } from '@/i18n';
 import type { Assist } from '@/data/controls';
 import type { AppContext, Screen } from '../Screen';
 
@@ -45,6 +45,10 @@ export class LoadoutScreen implements Screen {
     const stickButtons = [1, 2]
       .map((m) => `<button class="lo-opt ${m === stick ? 'on' : ''}" data-stick="${m}">MODE ${m}</button>`)
       .join('');
+    const langButtons = LOCALES.map(
+      (l) =>
+        `<button class="lo-opt ${l === getLocale() ? 'on' : ''}" data-lang="${l}">${l.toUpperCase()}</button>`,
+    ).join('');
 
     this.root.innerHTML =
       `<div class="lo-panel">` +
@@ -58,6 +62,7 @@ export class LoadoutScreen implements Screen {
       )}</div>` +
       `<div class="lo-row"><span class="lo-label">${t('loadout.assist')}</span>${assistButtons}</div>` +
       `<div class="lo-row"><span class="lo-label">${t('loadout.stick')}</span>${stickButtons}</div>` +
+      `<div class="lo-row"><span class="lo-label">${t('loadout.lang')}</span>${langButtons}</div>` +
       `<button class="db-btn lo-sortie">${t('loadout.sortie')}</button>` +
       `</div>`;
 
@@ -66,6 +71,9 @@ export class LoadoutScreen implements Screen {
     }
     for (const el of this.root.querySelectorAll<HTMLElement>('[data-stick]')) {
       el.addEventListener('click', () => this.setStick(Number(el.dataset.stick)));
+    }
+    for (const el of this.root.querySelectorAll<HTMLElement>('[data-lang]')) {
+      el.addEventListener('click', () => this.setLang(el.dataset.lang as Locale));
     }
     this.root.querySelector('.lo-sortie')?.addEventListener('click', () => this.sortie());
   }
@@ -85,6 +93,17 @@ export class LoadoutScreen implements Screen {
     if (!profile) return;
     profile.settings.stickMode = mode;
     save(profile);
+    this.render();
+  }
+
+  private setLang(lang: Locale): void {
+    const profile = this.ctx.state.profile;
+    if (!profile) return;
+    setLocale(lang);
+    profile.settings.lang = lang;
+    save(profile);
+    this.ctx.bus.emit('locale:changed', { locale: lang });
+    // 이 화면의 문자열이 그 자리에서 바뀐다 — 전환이 됐다는 즉각 증거
     this.render();
   }
 

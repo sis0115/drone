@@ -752,3 +752,31 @@ test('T9 작전실 — 어시스트 선택이 비행 모델을 정하고 저장�
   await page.goto('/');
   await expect(page.locator('[data-assist="semi"]')).toHaveClass(/on/);
 });
+
+/**
+ * T10 완료 조건(전반): 언어 전환 동작. 후반(중급 폰 60fps)은 실기 측정이 필요해
+ * 이 환경에서 검증할 수 없다 — CLAUDE.md "이 환경에서 안 되는 것" 그대로.
+ */
+test('T10 i18n — 언어를 바꾸면 그 자리에서 바뀌고, 재접속해도 유지된다', async ({ page }) => {
+  await page.goto('/');
+  await page.evaluate(() => localStorage.clear());
+  await page.goto('/');
+
+  const sortie = page.locator('.lo-sortie');
+  await expect(sortie).toContainText('출격');
+
+  await page.locator('[data-lang="en"]').click();
+  await expect(sortie, '언어를 바꿨는데 화면이 그대로다').toContainText('SORTIE');
+  await page.screenshot({ path: 'tests/__screenshots__/t10-lang-en.png' });
+
+  // 재접속 — 설정 저장(05 문서: 저장 시점 = 설정 변경)
+  await page.goto('/');
+  await expect(page.locator('.lo-sortie')).toContainText('SORTIE');
+
+  // 인게임 문자열도 영어다 — 디브리핑까지 가는 대신 HUD 패드 라벨은 dev 전용이라
+  // 가장 빠른 증거인 작전실 헤더로 확인한다
+  await expect(page.locator('.lo-head')).toContainText('OPS ROOM');
+  // 되돌리기 — 이후 테스트는 한국어 문구를 본다
+  await page.locator('[data-lang="ko"]').click();
+  await expect(page.locator('.lo-sortie')).toContainText('출격');
+});
