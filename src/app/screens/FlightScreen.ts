@@ -10,6 +10,8 @@ import { Battery } from '@/drone/Battery';
 import type { CrashReason, FlightContext, FlightModel } from '@/drone/FlightModel';
 import { DEFAULT as POSTFX } from '@/data/postfx';
 import { Hud } from '@/ui/Hud';
+import { TargetOverlay } from '@/ui/TargetOverlay';
+import { updateTargets } from '@/world/Targets';
 import { PadOverlay } from '@/ui/PadOverlay';
 import type { InputFrame } from '@/input/InputSource';
 import type { AppContext, Screen } from '../Screen';
@@ -29,6 +31,8 @@ export class FlightScreen implements Screen {
   private hud!: Hud;
   private hudRoot!: HTMLElement;
   private pads: PadOverlay | null = null;
+  private targets: TargetOverlay | null = null;
+  private elapsed = 0;
 
   private readonly signal = new SignalModel();
   private readonly los = new LineOfSight();
@@ -66,7 +70,7 @@ export class FlightScreen implements Screen {
     this.hudRoot.id = 'hud';
     ctx.overlay.appendChild(this.hudRoot);
     this.hud = new Hud(this.hudRoot);
-    this.hud.setMode(ctx.state.flightMode);
+    this.targets = new TargetOverlay(this.hudRoot);
 
     // 가상 패드 — 폰에서 이게 없으면 조작 자체가 불가능하다 (GDD 7장).
     if (ctx.touch) this.pads = new PadOverlay(this.hudRoot, ctx.touch);
@@ -81,12 +85,18 @@ export class FlightScreen implements Screen {
   exit(): void {
     this.pads?.dispose();
     this.pads = null;
+    this.targets?.dispose();
+    this.targets = null;
+    this.hud.dispose();
     this.hudRoot.remove();
     void this.ctx.platform.keepAwake(false);
   }
 
   update(dt: number, input: InputFrame): void {
     const { renderer, state, time } = this.ctx;
+
+    this.elapsed += dt;
+    updateTargets(this.world.targets, dt);
 
     if (!this.crashReason) {
       this.wind.update(dt);
@@ -129,7 +139,23 @@ export class FlightScreen implements Screen {
       this.world.vegetation.windUniform.value = time.elapsed;
     }
 
-    this.hud.update(time.fps, this.signal.quality);
+    this.hud.update({
+      fps: time.fps,
+      signal: this.signal.quality,
+      burst: this.signal.burst,
+      batteryPercent: this.battery.level,
+      altitude: t.agl,
+      speed: t.spd * 3.6,
+      // 아케이드만 목표 고도가 있다 — 프로는 조종사가 직접 잡는다
+      targetAltitude: this.flight.targetAltitude ?? null,
+      camMode: state.camMode.toUpperCase(),
+      losBlocked: this.los.blocked > 0.5,
+      linkDown: this.crashReason !== null,
+      elapsedSec: this.elapsed,
+      build: `${__BUILD_BRANCH__} ${__BUILD_ID__}`,
+    });
+    // 왜곡 계수는 셰이더가 받은 그 값을 그대로 넘긴다 (07 문서 2.4)
+    this.targets?.update(this.world.targets, renderer.camera, t.pos, renderer.params.distort);
     this.pads?.update();
   }
 
@@ -166,6 +192,7 @@ export class FlightScreen implements Screen {
   // ── 디버그·테스트용 표면 ──
 
   spawn(): void {
+    this.elapsed = 0;
     this.crashReason = null;
     this.ctx.renderer.uniforms.uDead.value = 0;
     this.battery.reset();
@@ -183,7 +210,6 @@ export class FlightScreen implements Screen {
     this.flight.telemetry.pos.copy(previous.pos);
     this.flight.telemetry.vel.copy(previous.vel);
     this.flight.telemetry.yaw = previous.yaw;
-    this.hud.setMode(mode);
     this.ctx.bus.emit('flight:mode-changed', { mode });
   }
 

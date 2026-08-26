@@ -30,6 +30,11 @@ export class FpvRenderer {
   private readonly compositeScene = new THREE.Scene();
   private readonly quadCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
   private readonly postMaterial: THREE.ShaderMaterial;
+  /**
+   * 셰이더에 마지막으로 밀어 넣은 튜닝 파라미터.
+   * 표적 오버레이가 **여기서 왜곡 계수를 읽어야** 셰이더와 어긋나지 않는다 (07 문서 2.4).
+   */
+  private currentParams: PostFxParams = DEFAULT;
 
   /** true인 프레임에는 rtPrev를 갱신하지 않는다 = 프레임 프리즈. */
   freeze = false;
@@ -107,7 +112,13 @@ export class FpvRenderer {
 
   /** 튜닝 파라미터 반영 (개발 빌드의 튜닝 패널이 호출). */
   setParams(params: PostFxParams): void {
+    this.currentParams = params;
     pushParams(this.postMaterial, params);
+  }
+
+  /** 셰이더가 실제로 쓰고 있는 파라미터. 오버레이 좌표 보정이 이걸 읽는다. */
+  get params(): Readonly<PostFxParams> {
+    return this.currentParams;
   }
 
   render(time: number, signalQuality: number): void {

@@ -5,6 +5,7 @@ import { buildTerrain, terrainH, type TerrainHandles } from './Terrain';
 import { FOG } from '@/data/render';
 import { buildVegetation, type VegetationHandles } from './Vegetation';
 import { buildProps, type PropHandles } from './Props';
+import { buildTargets, type Target } from './Targets';
 import { AoCollector } from './Ao';
 import type { Obstacle } from './Props';
 
@@ -25,6 +26,8 @@ export interface World {
   obstacles: Obstacle[];
   /** 드론을 따라다녀야 하는 태양 (섀도우 카메라가 ±110m 뿐이다) */
   sun: THREE.DirectionalLight;
+  /** 표적 — HUD 오버레이와 미션 판정이 읽는다 */
+  targets: Target[];
   heightAt(x: number, z: number): number;
 }
 
@@ -47,6 +50,8 @@ export function buildWorld(): World {
   const vegetation = buildVegetation(scene, registry, ao);
   ao.build(scene, registry);
 
+  const targets = buildTargets(scene, registry);
+
   return {
     scene,
     registry,
@@ -54,6 +59,7 @@ export function buildWorld(): World {
     vegetation,
     props,
     sun,
+    targets,
     obstacles: props.obstacles,
     heightAt: terrainH,
   };

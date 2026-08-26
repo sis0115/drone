@@ -37,6 +37,8 @@ export interface FlightModel {
   readonly telemetry: DroneTelemetry;
   /** 급기동 화면 밀림 (후처리 uShake). 아케이드는 0. */
   readonly shake: { x: number; y: number };
+  /** 고도 유지 목표 (아케이드만). 프로는 조종사가 직접 잡으므로 없다. */
+  readonly targetAltitude?: number;
 }
 
 /** 두 구현이 공유하는 상태. */

@@ -152,6 +152,75 @@ test('비행 모드 전환이 기체를 순간이동시키지 않는다', async 
   expect(result.after.z).toBeCloseTo(result.before.z, 3);
 });
 
+test('T5 표적 오버레이 — 70m 밖은 녹색 지시, 안쪽은 황색 락온', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForFunction(() => window.__debug?.ready === true, null, { timeout: 60_000 });
+  await page.evaluate(() => {
+    window.__debug.flight.setWindCalm();
+    window.__debug.flight.respawn();
+  });
+
+  /** 도로 위 트럭(초기 z=-220)에서 +z 로 `gap` 미터 뒤에 서서 -z 를 본다. */
+  const lookAtTruck = async (gap: number) => {
+    await page.evaluate((g) => {
+      const t = window.__debug.flight.telemetry();
+      t.pos.set(120, 14, -220 + g);
+      t.vel.set(0, 0, 0);
+      t.yaw = 0;
+    }, gap);
+    await page.evaluate(async () => {
+      const n = window.__debug.frame + 3;
+      while (window.__debug.frame < n) await new Promise((r) => requestAnimationFrame(r));
+    });
+    return page.evaluate(() => ({
+      diamonds: document.querySelectorAll('.target-overlay polygon').length,
+      locks: document.querySelectorAll('.target-overlay rect').length,
+      labels: [...document.querySelectorAll('.target-overlay text')].map((t) => t.textContent ?? ''),
+    }));
+  };
+
+  const far = await lookAtTruck(140);
+  expect(far.diamonds, '원거리 표적에 다이아 마커가 없다').toBeGreaterThan(0);
+  expect(far.locks, '70m 밖인데 락온 박스가 떴다').toBe(0);
+  expect(far.labels.some((l) => /TRUCK \d+M/.test(l)), '거리 라벨이 없다').toBe(true);
+
+  const near = await lookAtTruck(42);
+  expect(near.locks, '70m 안인데 락온 박스가 없다').toBeGreaterThan(0);
+  expect(near.labels).toContain('LOCK');
+
+  await page.screenshot({ path: 'tests/__screenshots__/t5-hud-lock.png' });
+});
+
+test('T5 HUD — 06 문서 규격대로 코너에 흩어진다', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForFunction(() => window.__debug?.ready === true, null, { timeout: 60_000 });
+
+  // 점선 십자·수평 가이드가 SVG 로 그려진다 (06 문서 원칙 ①)
+  const dashed = await page.locator('.hud-reticle line[stroke-dasharray]').count();
+  expect(dashed, '점선 수평 가이드가 없다').toBeGreaterThan(0);
+  const solid = await page.locator('.hud-reticle line:not([stroke-dasharray])').count();
+  expect(solid, '중앙 십자 4조각이 없다').toBe(4);
+
+  // 텍스트가 네 코너 + 우중하에 흩어져 있다 (원칙 ②)
+  for (const cell of ['status', 'link', 'alt', 'callsign', 'build']) {
+    await expect(page.locator(`[data-c="${cell}"]`)).not.toBeEmpty();
+  }
+  await expect(page.locator('[data-c="status"]')).toContainText('READY');
+  await expect(page.locator('[data-c="alt"]')).toContainText('ALT');
+  await expect(page.locator('[data-c="alt"]')).toContainText('km/h');
+  // 아케이드는 목표 고도(SET)를 보여 준다
+  await expect(page.locator('[data-c="alt"]')).toContainText('SET');
+
+  // 배경판·테두리 상자 없음 (원칙 ③) — 외곽선만으로 가독성을 낸다
+  const style = await page.locator('[data-c="status"]').evaluate((el) => {
+    const cs = getComputedStyle(el);
+    return { bg: cs.backgroundColor, border: cs.borderStyle, shadow: cs.textShadow };
+  });
+  expect(style.bg).toBe('rgba(0, 0, 0, 0)');
+  expect(style.border).toBe('none');
+  expect(style.shadow).not.toBe('none');
+});
+
 test('__debug 훅 규격 — 좌표·속도·fps·렌더 정보 노출', async ({ page }) => {
   await page.goto('/');
   await page.waitForFunction(() => window.__debug?.ready === true, null, { timeout: 10_000 });

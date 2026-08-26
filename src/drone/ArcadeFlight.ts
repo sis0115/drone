@@ -18,8 +18,12 @@ export class ArcadeFlight implements FlightModel {
   readonly telemetry = new FlightState();
   readonly shake = { x: 0, y: 0 }; // 아케이드는 화면 밀림 없음
 
-  /** 지면 대비 목표 고도. 언덕을 만나면 알아서 넘어간다. */
+  /** 지면 대비 목표 고도. 언덕을 만나면 알아서 넘어간다. HUD 의 `SET` 표시가 이 값이다. */
   private targetAgl = 18;
+
+  get targetAltitude(): number {
+    return this.targetAgl;
+  }
 
   constructor(private readonly ctx: FlightContext) {}
 

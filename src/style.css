@@ -156,3 +156,51 @@ html, body {
   letter-spacing: 0.08em;
   white-space: nowrap;
 }
+
+/* ── HUD (06 문서 2장) ─────────────────────────────
+   배경판·테두리 상자 없음. 텍스트에 얇은 검정 외곽선만.
+   좌표는 코너에 흩어진다 — 좌상에 몰지 않는다. */
+.hud-reticle,
+.target-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.hud-cell {
+  position: absolute;
+  font-size: clamp(11px, 1.5vw, 16px);
+  line-height: 1.35;
+  letter-spacing: 0.05em;
+  color: var(--c-text-dim);
+  /* 배경판 대신 외곽선으로 가독성을 낸다 (06 문서 원칙 ③) */
+  text-shadow:
+    0 0 2px #000,
+    0 0 4px rgba(0, 0, 0, 0.8);
+  white-space: nowrap;
+}
+.hud-tl { top: calc(2.2vh + var(--sat)); left: calc(2.4vw + var(--sal)); }
+.hud-tr { top: calc(2.2vh + var(--sat)); right: calc(2.4vw + var(--sar)); text-align: right; }
+/* 고도는 우측 중하단 — 06 문서 와이어프레임 그대로 */
+.hud-mr { top: 56%; right: calc(2.4vw + var(--sar)); text-align: right; }
+.hud-bl { bottom: calc(2.2vh + var(--sab)); left: calc(2.4vw + var(--sal)); }
+.hud-br { bottom: calc(2.2vh + var(--sab)); right: calc(2.4vw + var(--sar)); text-align: right; }
+
+.hud-cell .wht { color: var(--c-text-white); }
+.hud-cell .dim { color: var(--c-text-dim); }
+.hud-cell .amb { color: var(--c-accent-amber); }
+.hud-cell .red { color: var(--c-accent-red); }
+.hud-cell .small { font-size: 0.75em; }
+
+/* 코너 브래킷 — 06 문서 원칙 ④ */
+.hud-cell .brk {
+  display: inline-block;
+  border: 1px solid var(--c-line);
+  border-radius: 0;
+  padding: 0 5px;
+  margin-left: 5px;
+  color: var(--c-text-primary);
+}
