@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { rnd } from './noise';
+import { smokeTex } from './textures';
 import { terrainH } from './Terrain';
 import { mergeParts, place, type MergePart } from './mergeGeometries';
 import type { ThermalRegistry } from './ThermalRegistry';
@@ -125,6 +126,71 @@ export function buildTargets(
     targets.push({ group, alive: true, speed: rnd(7, 10), kind: 'truck' });
   }
   return targets;
+}
+
+/**
+ * 격파 처리 — 프로토타입은 `visible=false` 로 트럭을 지웠지만, 아트 패스 이후
+ * 격파된 표적은 **전소 잔해로 남는 것**이 현장감이고 확인(BDA, T8c)의 재료다.
+ *
+ * 열화상 처리가 핵심이다: 격파된 트럭의 엔진이 계속 백열(0.98)이면
+ * "죽은 것은 차갑다"는 D1 디코이 학습 규칙과 모순된다. 세 파트의 열화상
+ * 머티리얼을 전부 식은 것(0.28)으로 갈아 끼운다.
+ */
+export function destroyTarget(
+  target: Target,
+  registry: ThermalRegistry,
+  thermalNow: boolean,
+): void {
+  if (!target.alive) return;
+  target.alive = false;
+
+  const burntNormal = new THREE.MeshLambertMaterial({ color: 0x211d19 });
+  const burntThermal = new THREE.MeshBasicMaterial({
+    color: new THREE.Color(0.28, 0.28, 0.28),
+    fog: true,
+  });
+  for (const child of target.group.children) {
+    if (!(child as THREE.Mesh).isMesh) continue;
+    const mesh = child as THREE.Mesh;
+    const pair = registry.pairs.find((q) => q.mesh === mesh);
+    if (pair) {
+      pair.normal = burntNormal;
+      pair.thermal = burntThermal;
+    }
+    mesh.material = thermalNow ? burntThermal : burntNormal;
+  }
+
+  // 주저앉은 잔해 — 반듯하게 죽는 차는 없다
+  target.group.rotation.z = 0.14;
+  target.group.position.y -= 0.25;
+
+  // 전소 연기 — 얇고 검은 기둥이 격파 지점을 표시한다 (확인 비행의 시각 단서)
+  const smokeMat = new THREE.MeshLambertMaterial({
+    map: smokeTex(),
+    transparent: true,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+    color: 0x232220,
+    opacity: 0.72,
+  });
+  const smoke: THREE.Mesh = new THREE.Mesh(new THREE.CylinderGeometry(2.6, 0.7, 34, 6, 3, true), smokeMat);
+  smoke.position.set(0, 18, 0);
+  target.group.add(smoke);
+  registry.pairs.push({
+    mesh: smoke,
+    normal: smokeMat,
+    thermal: new THREE.MeshBasicMaterial({
+      map: smokeMat.map,
+      transparent: true,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+      // 갓 죽은 불씨 — 잔해(0.28)보다 따뜻하지만 살아 있는 엔진(0.98)에는 못 미친다
+      color: new THREE.Color(0.5, 0.5, 0.5),
+      opacity: 0.72,
+      fog: true,
+    }),
+  });
+  if (thermalNow) smoke.material = registry.pairs[registry.pairs.length - 1].thermal;
 }
 
 const ROAD_X = 120;

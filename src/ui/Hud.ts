@@ -25,6 +25,8 @@ export interface HudState {
   threat: { token: string; distance: number; armed: boolean; lethal: boolean; aiming: boolean } | null;
   losBlocked: boolean;
   linkDown: boolean;
+  /** 자폭 돌입 성립 — 링크 상실이 실패가 아니라 임무 완수라는 표시 */
+  struck: boolean;
   elapsedSec: number;
   build: string;
 }
@@ -113,7 +115,8 @@ export class Hud {
     // 30% 이하는 저전압 경고 깜빡임 (GDD 4장)
     const lowBattery = s.batteryPercent <= 30;
     const battClass = lowBattery ? (Math.floor(performance.now() / 400) % 2 ? 'red' : 'dim') : 'wht';
-    const status = s.linkDown ? 'NO LINK' : s.losBlocked ? 'LOS BLOCK' : 'READY';
+    // 같은 정지 화면이라도 자폭은 실패가 아니다 — 무전은 "잘 가라, 고철"이라고 한다
+    const status = s.linkDown ? (s.struck ? 'TGT DOWN' : 'NO LINK') : s.losBlocked ? 'LOS BLOCK' : 'READY';
 
     /**
      * 위협 예고 — 06 문서 원칙 ⑤: 라벨 없이 코드와 거리만.

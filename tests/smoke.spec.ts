@@ -506,3 +506,59 @@ test('세로로 들면 가로 안내가 뜨고, 가로에서는 사라진다', a
   await page.setViewportSize({ width: 915, height: 412 });
   await expect(notice, '가로로 돌렸는데 안내가 안 사라진다').toBeHidden();
 });
+
+/**
+ * T8a 완료 조건: 트럭에 부딪혀 격파되고, 격파 사실이 화면과 이벤트에 남는다.
+ * 여기서는 그 전체 사슬을 브라우저에서 본다 — 돌입 → 기폭 → 표적 전소 → TGT DOWN.
+ */
+test('T8a 자폭 돌입 — 트럭에 박으면 격파되고 TGT DOWN 이 뜬다', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForFunction(() => window.__debug?.ready === true, null, { timeout: 60_000 });
+  await page.evaluate(() => {
+    window.__debug.flight.setWindCalm();
+    window.__debug.flight.respawn();
+  });
+
+  const before = await page.evaluate(() => window.__debug.flight.strike());
+  expect(before.struck).toBe(false);
+  expect(before.targetsAlive).toBe(3);
+
+  /**
+   * 선두 트럭을 뒤에서 따라잡는다. 이 컨테이너는 ~1fps 라 실기동 추격은 타임아웃이
+   * 나므로, 매 프레임 기체를 2m 씩 전진시키는 압축 궤적을 쓴다 — 판정 자체는
+   * 실제 게임 루프의 findImpact 가 그대로 수행한다.
+   */
+  const result = await page.evaluate(async () => {
+    const t = window.__debug.flight.telemetry();
+    let z = -214; // 트럭 초기(-220) 살짝 뒤
+    t.pos.set(120, t.pos.y + (2.5 - t.agl), z);
+    t.yaw = 0;
+    const deadline = window.__debug.frame + 60;
+    while (window.__debug.frame < deadline && !window.__debug.flight.crashed()) {
+      z -= 2;
+      t.pos.set(120, t.pos.y, z);
+      t.vel.set(0, 0, -14);
+      await new Promise((r) => requestAnimationFrame(r));
+    }
+    return {
+      crashed: window.__debug.flight.crashed(),
+      strike: window.__debug.flight.strike(),
+    };
+  });
+
+  expect(result.crashed, '돌입했는데 기폭이 없다').toBe('자폭 돌입');
+  expect(result.strike.struck).toBe(true);
+  expect(result.strike.targetsAlive, '격파됐는데 표적 수가 그대로다').toBe(2);
+
+  // 화면: 정지 화면 위 상태가 NO LINK 가 아니라 TGT DOWN — 실패가 아니라 완수다
+  await expect(page.locator('#hud .hud-tl')).toContainText('TGT DOWN');
+  await page.screenshot({ path: 'tests/__screenshots__/t8a-strike.png' });
+
+  // 리스폰 후: 기체는 새것, 격파는 유지 (미션 재시작은 T8c 의 몫)
+  const after = await page.evaluate(() => {
+    window.__debug.flight.respawn();
+    return window.__debug.flight.strike();
+  });
+  expect(after.struck, '리스폰이 struck 을 리셋하지 않았다').toBe(false);
+  expect(after.targetsAlive, '리스폰이 격파를 되돌렸다').toBe(2);
+});

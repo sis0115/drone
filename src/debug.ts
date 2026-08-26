@@ -40,6 +40,8 @@ export interface FlightDebugApi {
   battery(): number;
   /** 잔량을 직접 세운다 — 저전압 화면을 실시간으로 기다리지 않기 위해 */
   setBattery(percent: number): void;
+  /** 자폭 결과 — 성립 여부와 생존 표적 수 */
+  strike(): { struck: boolean; targetsAlive: number };
   crashed(): string | null;
   respawn(): void;
   camMode(): string;
@@ -112,6 +114,7 @@ export function installDebug(app: App, flight: FlightScreen): DebugApi {
       crashed: () => flight.crashed,
       respawn: () => flight.spawn(),
       setBattery: (p) => flight.setBattery(p),
+      strike: () => flight.strikeState,
       camMode: () => state.camMode,
       threats: () => flight.threatState,
       setCamMode: (m) => flight.setCamMode(m),

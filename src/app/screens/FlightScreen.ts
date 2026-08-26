@@ -14,7 +14,8 @@ import { TargetOverlay } from '@/ui/TargetOverlay';
 import { ThreatOverlay } from '@/ui/ThreatOverlay';
 import { ThreatRunner, type ThreatFrame } from '@/mission/threats/ThreatRunner';
 import { buildDemoThreats } from '@/mission/DemoThreats';
-import { updateTargets } from '@/world/Targets';
+import { destroyTarget, updateTargets } from '@/world/Targets';
+import { findImpact } from '@/mission/Strike';
 import { CAM_MODE_LABEL, THERMAL_UNIFORM, applyCameraMode, nextCamMode } from '@/world/CameraMode';
 import { PadOverlay } from '@/ui/PadOverlay';
 import type { InputFrame } from '@/input/InputSource';
@@ -45,6 +46,8 @@ export class FlightScreen implements Screen {
   private wind!: Wind;
   private threats!: ThreatRunner;
   private threatFrame: ThreatFrame = { jam: 0, kill: null, warning: null, warnings: [] };
+  /** 이번 출격에서 자폭 돌입이 성립했는가 — HUD 가 NO LINK 대신 TGT DOWN 을 띄운다 */
+  private struck = false;
 
   private models!: Record<'arcade' | 'pro', FlightModel>;
   private flight!: FlightModel;
@@ -134,6 +137,23 @@ export class FlightScreen implements Screen {
     // 돔 경계에서 화면이 한 프레임 늦게 무너지지 않는다.
     if (!this.crashReason) this.updateThreats(dt, t.agl, t.spd);
 
+    // 자폭 돌입 — 무장이 아니라 기체가 탄이다 (T8a). 판정 수식은 프로토타입 그대로.
+    if (!this.crashReason) {
+      const impact = findImpact(t.pos, this.world.targets, this.flight.mode);
+      if (impact) {
+        destroyTarget(impact.target, this.world.registry, state.camMode === 'thermal');
+        this.struck = true;
+        this.ctx.bus.emit('strike:hit', {
+          distance: impact.distance,
+          speed: t.spd,
+          targetsLeft: this.world.targets.filter((x) => x.alive).length,
+        });
+        // 기폭 진동은 격추 진동과 달라야 한다 — 한 방
+        this.ctx.platform.vibrate([220]);
+        this.crash('자폭 돌입');
+      }
+    }
+
     this.followCamera();
     this.followSun();
 
@@ -186,6 +206,7 @@ export class FlightScreen implements Screen {
         : null,
       losBlocked: this.los.blocked > 0.5,
       linkDown: this.crashReason !== null,
+      struck: this.struck,
       elapsedSec: this.elapsed,
       build: `${__BUILD_BRANCH__} ${__BUILD_ID__}`,
     });
@@ -263,6 +284,8 @@ export class FlightScreen implements Screen {
   spawn(): void {
     this.elapsed = 0;
     this.crashReason = null;
+    // 격파된 표적은 리스폰해도 남는다 — 미션 재시작(T8c)이 월드를 새로 짓는다
+    this.struck = false;
     this.ctx.renderer.uniforms.uDead.value = 0;
     this.battery.reset();
     this.signal.reset();
@@ -324,6 +347,10 @@ export class FlightScreen implements Screen {
       jam: this.threatFrame.jam,
       violations: this.threats.violations,
     };
+  }
+  /** 테스트·디버그 — 자폭 결과 */
+  get strikeState(): { struck: boolean; targetsAlive: number } {
+    return { struck: this.struck, targetsAlive: this.world.targets.filter((x) => x.alive).length };
   }
   get renderInfo(): { calls: number; triangles: number } {
     return this.ctx.renderer.info;

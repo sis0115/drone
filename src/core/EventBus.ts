@@ -23,6 +23,8 @@ export interface GameEvents {
   'threat:hit': {
     id: string; causeKey: string; agl: number; adviceKey: string; adviceParams: readonly number[];
   };
+  /** 자폭 돌입 성립 — 표적 격파. 디브리핑·SP(T8c/T9)가 이 payload 를 먹는다 */
+  'strike:hit': { distance: number; speed: number; targetsLeft: number };
   'mission:started': { missionId: string };
   'mission:ended': { missionId: string; cleared: boolean };
   'sp:changed': { sp: number; delta: number };
