@@ -89,3 +89,70 @@ html, body {
   background: var(--c-text-primary);
 }
 
+
+/* ── 가상 패드 (GDD 7장) ─────────────────────────────
+   원형인 이유: 스틱은 버튼이 아니라 조종 장치이고, 기준선(프로토타입)도 원형이다.
+   대신 채우기 없이 점선 테두리만 쓴다. 04 문서의 "라운드 버튼 금지"는 버튼 이야기다. */
+#pads { position: absolute; inset: 0; pointer-events: none; }
+
+.stick {
+  position: absolute;
+  bottom: calc(26px + var(--sab));
+  width: 132px;
+  height: 132px;
+  border: 1px dashed var(--c-line);
+  border-radius: 50%;
+  opacity: 0.42;
+  transition: opacity 0.12s;
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(143, 255, 171, 0.045) 0%, rgba(0, 0, 0, 0) 70%);
+}
+.stick.on { opacity: 0.92; border-color: var(--c-text-primary); }
+.stick[data-side='left'] { left: calc(26px + var(--sal)); }
+.stick[data-side='right'] { right: calc(26px + var(--sar)); }
+
+.knob {
+  position: absolute;
+  left: 42px;
+  top: 42px;
+  width: 48px;
+  height: 48px;
+  border: 1px solid var(--c-text-primary);
+  border-radius: 50%;
+  background: rgba(143, 255, 171, 0.1);
+  transition: transform 0.04s linear;
+}
+
+.stick .ax {
+  position: absolute;
+  font-size: 9px;
+  color: var(--c-text-dim);
+  letter-spacing: 1px;
+}
+.ax.u { top: 4px; left: 50%; transform: translateX(-50%); }
+.ax.d { bottom: 4px; left: 50%; transform: translateX(-50%); }
+.ax.l { left: 5px; top: 50%; transform: translateY(-50%); }
+.ax.r { right: 5px; top: 50%; transform: translateY(-50%); }
+
+.padlbl {
+  position: absolute;
+  bottom: -17px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 9px;
+  color: var(--c-text-dim);
+  white-space: nowrap;
+  letter-spacing: 1px;
+}
+
+.padvals {
+  position: absolute;
+  /* 화면 중앙을 피해 하단에 붙인다 — FPV 화면을 가리면 안 된다. */
+  bottom: calc(4px + var(--sab));
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: clamp(9px, 1.3vw, 12px);
+  color: var(--c-text-dim);
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}

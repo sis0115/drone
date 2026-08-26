@@ -77,6 +77,63 @@ test('T3 비행이 실제로 배선되어 있다 — 입력이 기체를 움직�
   expect(after.crashed).toBeNull();
 });
 
+test('T4 가상 패드가 실제로 기체를 움직인다', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForFunction(() => window.__debug?.ready === true, null, { timeout: 60_000 });
+  await page.evaluate(() => {
+    window.__debug.flight.setWindCalm();
+    window.__debug.flight.respawn();
+  });
+
+  // 패드가 화면에 있다 — 없으면 폰에서 조작 자체가 불가능하다.
+  await expect(page.locator('.stick[data-side="left"]')).toBeVisible();
+  await expect(page.locator('.stick[data-side="right"]')).toBeVisible();
+
+  const start = await page.evaluate(() => window.__debug.drone.pos);
+
+  // 오른쪽 스틱을 위로 민다 = 전진 (Mode 2). 사람이 하는 것과 같은 경로.
+  const box = (await page.locator('.stick[data-side="right"]').boundingBox())!;
+  const cx = box.x + box.width / 2;
+  const cy = box.y + box.height / 2;
+  await page.mouse.move(cx, cy);
+  await page.mouse.down();
+  await page.mouse.move(cx, cy - 60, { steps: 4 });
+
+  const axis = await page.evaluate(() => window.__debug.state.input as { pitch: number });
+  expect(axis.pitch, '패드를 밀었는데 입력 축이 서지 않았다').toBeGreaterThan(0.5);
+
+  await page.evaluate(async () => {
+    const target = window.__debug.frame + 8;
+    while (window.__debug.frame < target) await new Promise((r) => requestAnimationFrame(r));
+  });
+  await page.mouse.up();
+
+  const after = await page.evaluate(() => window.__debug.drone.pos);
+  const moved = Math.hypot(after[0] - start[0], after[2] - start[2]);
+  expect(moved, '패드 입력이 비행으로 이어지지 않았다').toBeGreaterThan(1);
+
+  await page.screenshot({ path: 'tests/__screenshots__/t4-pads.png' });
+});
+
+test('스틱을 놓으면 입력이 중립으로 돌아간다', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForFunction(() => window.__debug?.ready === true, null, { timeout: 60_000 });
+
+  const box = (await page.locator('.stick[data-side="right"]').boundingBox())!;
+  const cx = box.x + box.width / 2;
+  const cy = box.y + box.height / 2;
+  await page.mouse.move(cx, cy);
+  await page.mouse.down();
+  await page.mouse.move(cx, cy - 60, { steps: 3 });
+  await page.mouse.up();
+
+  await page.waitForFunction(
+    () => Math.abs((window.__debug.state.input as { pitch: number }).pitch) < 0.01,
+    null,
+    { timeout: 10_000 },
+  );
+});
+
 test('비행 모드 전환이 기체를 순간이동시키지 않는다', async ({ page }) => {
   await page.goto('/');
   await page.waitForFunction(() => window.__debug?.ready === true, null, { timeout: 60_000 });

@@ -48,6 +48,16 @@ export const ARCADE = {
  */
 export const ARCADE_WIND_COMPENSATION = 0.3;
 
+/**
+ * ACRO(레이트 모드) 기울기 변화율 rad/s.
+ * 각도 모드(세미)는 스틱 위치가 곧 기울기지만, ACRO 는 스틱이 **각속도**를 준다 —
+ * 놓아도 수평으로 돌아오지 않아 직접 반대로 눕혀야 한다. 고수용.
+ *
+ * ⚠️ 프로토타입에는 ACRO 가 없었다. GDD 7장 어시스트 3단계를 구현하며 새로 도입한 값이다.
+ * MAX_TILT(32°) 를 약 0.4초에 찍는 속도로 잡았다.
+ */
+export const ACRO_TILT_RATE = 1.4;
+
 /** 표적 판정 반경 (m) */
 export const HIT_RADIUS = { arcade: 7.0, pro: 4.2 } as const;
 

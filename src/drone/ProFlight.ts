@@ -1,5 +1,6 @@
 import { Vector3 } from 'three';
-import { PRO } from '@/data/flight';
+import { ACRO_TILT_RATE, PRO } from '@/data/flight';
+import type { Assist } from '@/data/controls';
 import type { InputFrame } from '@/input/InputSource';
 import { FlightState, type FlightContext, type FlightModel } from './FlightModel';
 
@@ -17,7 +18,11 @@ export class ProFlight implements FlightModel {
   /** 급기동량 → 화면 밀림. 후처리 uShake 로 들어간다. */
   readonly shake = { x: 0, y: 0 };
 
-  constructor(private readonly ctx: FlightContext) {}
+  /**
+   * `semi` = 각도 모드 (스틱을 놓으면 수평으로 복귀)
+   * `acro` = 레이트 모드 (놓아도 기울기 유지 — GDD 7장 ③, 보상 +20%)
+   */
+  constructor(private readonly ctx: FlightContext, public assist: Extract<Assist, 'semi' | 'acro'> = 'semi') {}
 
   reset(pos: Vector3, yaw: number): void {
     this.telemetry.reset(pos, yaw);
@@ -28,11 +33,19 @@ export class ProFlight implements FlightModel {
   step(input: InputFrame, dt: number): void {
     const s = this.telemetry;
 
-    const k = Math.min(1, PRO.TILT_RESP * dt);
     const prevPitch = s.pitch;
     const prevRoll = s.roll;
-    s.pitch += (input.pitch * PRO.MAX_TILT - s.pitch) * k;
-    s.roll += (input.roll * PRO.MAX_TILT - s.roll) * k;
+
+    if (this.assist === 'acro') {
+      // 레이트 모드 — 스틱이 각속도를 준다. 자동 복귀 없음.
+      s.pitch = clampTilt(s.pitch + input.pitch * ACRO_TILT_RATE * dt);
+      s.roll = clampTilt(s.roll + input.roll * ACRO_TILT_RATE * dt);
+    } else {
+      // 각도 모드 — 스틱 위치가 곧 기울기. 놓으면 수평으로 돌아온다.
+      const k = Math.min(1, PRO.TILT_RESP * dt);
+      s.pitch += (input.pitch * PRO.MAX_TILT - s.pitch) * k;
+      s.roll += (input.roll * PRO.MAX_TILT - s.roll) * k;
+    }
     s.yaw += input.yaw * PRO.YAW_RATE * dt;
 
     // 기울기 변화량이 곧 화면 밀림 — 급기동할수록 카메라가 밀린다.
@@ -85,4 +98,8 @@ export class ProFlight implements FlightModel {
       }
     }
   }
+}
+
+function clampTilt(v: number): number {
+  return Math.max(-PRO.MAX_TILT, Math.min(PRO.MAX_TILT, v));
 }

@@ -8,6 +8,7 @@ import { applyTheme } from '@/data/theme';
 import { setLocale, type Locale } from '@/i18n';
 import { platform } from '@/platform';
 import { KeyboardInput } from '@/input/KeyboardInput';
+import { TouchInput } from '@/input/TouchInput';
 import { NEUTRAL, type InputFrame, type InputSource } from '@/input/InputSource';
 import type { AppContext, Screen } from './Screen';
 
@@ -28,6 +29,8 @@ export class App {
   private readonly screens = new Map<ScreenName, Screen>();
   private currentScreen: Screen | null = null;
   private readonly keyboard = new KeyboardInput();
+  /** 가상 패드. UI(PadOverlay)가 이걸 그리고, 여기서는 값만 읽는다. */
+  readonly touch = new TouchInput();
   private scripted: InputSource | null = null;
   private lastInput: InputFrame = { ...NEUTRAL };
   private running = false;
@@ -55,6 +58,7 @@ export class App {
       state,
       platform: platform(),
       overlay: this.overlay,
+      touch: this.touch,
       go: (name) => this.go(name),
     };
   }
@@ -98,12 +102,30 @@ export class App {
     requestAnimationFrame(this.loop);
     const dt = this.time.tick(now);
 
-    const source = this.scripted ?? this.keyboard;
-    this.lastInput = source.sample(this.time.elapsed, dt);
+    this.lastInput = this.sampleInput(dt);
 
     this.currentScreen?.update(dt, this.lastInput);
     this.renderer.render(this.time.elapsed, state.signalQuality);
   };
+
+  /**
+   * 입력 합성. 스크립트가 꽂혀 있으면 그것만 쓰고(테스트 재현성),
+   * 아니면 **키보드가 눌린 축은 키보드가, 나머지는 패드가** 이긴다.
+   * 데스크톱에서 키보드로 잡다가 패드를 만져도 끊기지 않는다.
+   */
+  private sampleInput(dt: number): InputFrame {
+    if (this.scripted) return this.scripted.sample(this.time.elapsed, dt);
+
+    const key = this.keyboard.sample();
+    const pad = this.touch.sample();
+    return {
+      pitch: key.pitch || pad.pitch,
+      roll: key.roll || pad.roll,
+      yaw: key.yaw || pad.yaw,
+      throttle: key.throttle || pad.throttle,
+      fire: key.fire || pad.fire,
+    };
+  }
 
   private readonly onResize = (): void => {
     this.renderer.resize(window.innerWidth, window.innerHeight);

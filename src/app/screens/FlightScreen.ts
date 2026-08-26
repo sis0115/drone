@@ -10,6 +10,7 @@ import { Battery } from '@/drone/Battery';
 import type { CrashReason, FlightContext, FlightModel } from '@/drone/FlightModel';
 import { DEFAULT as POSTFX } from '@/data/postfx';
 import { Hud } from '@/ui/Hud';
+import { PadOverlay } from '@/ui/PadOverlay';
 import type { InputFrame } from '@/input/InputSource';
 import type { AppContext, Screen } from '../Screen';
 
@@ -27,6 +28,7 @@ export class FlightScreen implements Screen {
   private world!: World;
   private hud!: Hud;
   private hudRoot!: HTMLElement;
+  private pads: PadOverlay | null = null;
 
   private readonly signal = new SignalModel();
   private readonly los = new LineOfSight();
@@ -66,6 +68,9 @@ export class FlightScreen implements Screen {
     this.hud = new Hud(this.hudRoot);
     this.hud.setMode(ctx.state.flightMode);
 
+    // 가상 패드 — 폰에서 이게 없으면 조작 자체가 불가능하다 (GDD 7장).
+    if (ctx.touch) this.pads = new PadOverlay(this.hudRoot, ctx.touch);
+
     this.spawnPoint = new Vector3(0, this.world.heightAt(0, 0) + 0.6, 0);
     this.spawn();
 
@@ -74,6 +79,8 @@ export class FlightScreen implements Screen {
   }
 
   exit(): void {
+    this.pads?.dispose();
+    this.pads = null;
     this.hudRoot.remove();
     void this.ctx.platform.keepAwake(false);
   }
@@ -123,6 +130,7 @@ export class FlightScreen implements Screen {
     }
 
     this.hud.update(time.fps, this.signal.quality);
+    this.pads?.update();
   }
 
   private followCamera(): void {

@@ -4,6 +4,7 @@ import type { EventBus } from '@/core/EventBus';
 import type { GameState, ScreenName } from '@/core/GameState';
 import type { Platform } from '@/platform';
 import type { InputFrame } from '@/input/InputSource';
+import type { TouchInput } from '@/input/TouchInput';
 
 /**
  * 화면 하나의 계약. GDD 2장의 화면 흐름이 이 인터페이스의 구현들로 표현된다.
@@ -30,6 +31,8 @@ export interface AppContext {
   readonly platform: Platform;
   /** DOM 오버레이 루트 (HUD·패널이 붙는 곳) */
   readonly overlay: HTMLElement;
+  /** 가상 패드 입력. 화면이 이걸 UI 로 그린다. */
+  readonly touch: TouchInput;
   /** 화면 전환 요청 */
   go(name: ScreenName): void;
 }

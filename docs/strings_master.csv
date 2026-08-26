@@ -42,3 +42,13 @@ item.frame.sparrow7.name,스패로우-7,SPARROW-7
 item.frame.hornet10.name,호넷-10,HORNET-10
 item.cam.thermal.name,열화상 "레드아이",THERMAL "REDEYE"
 item.pwr.steadywing.name,자이로 안정화 "스테디윙",GYRO STABILIZER "STEADYWING"
+ui.pad.throttle_yaw,스로틀 / 요,THROTTLE / YAW
+ui.pad.pitch_roll,전후 / 좌우,PITCH / ROLL
+ui.pad.up,상승,UP
+ui.pad.down,하강,DOWN
+ui.pad.turn_left,◀회전,◀YAW
+ui.pad.turn_right,회전▶,YAW▶
+ui.pad.forward,전진,FWD
+ui.pad.back,후진,BACK
+ui.pad.left,◀좌,◀LEFT
+ui.pad.right,우▶,RIGHT▶
