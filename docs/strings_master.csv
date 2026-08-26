@@ -57,3 +57,17 @@ threat.a1.name,산탄총,SHOTGUN
 threat.a1.advice,고도 {0}m 이상 또는 {1}m 이하로 통과,PASS ABOVE {0}m OR BELOW {1}m
 threat.b1.name,재밍 돔,JAMMER DOME
 ui.rotate,기기를 가로로 돌리세요,ROTATE DEVICE TO LANDSCAPE
+mission.m2.title,강철 사냥,STEEL HUNT
+debrief.win,임무 완수,MISSION COMPLETE
+debrief.loss,임무 실패,MISSION FAILED
+debrief.kills,격파 {0}/{1},KILLS {0}/{1}
+debrief.time,체공 {0}초,AIRBORNE {0}S
+debrief.cause,손실 원인: {0},LOSS: {0}
+debrief.causeThreat,격추 원인: {0} — 접근 고도 {1}m,SHOT DOWN: {0} AT {1}M AGL
+debrief.advice,권고: {0},ADVISORY: {0}
+debrief.redeploy,재출격,REDEPLOY
+cause.ground,지면 충돌,GROUND IMPACT
+cause.structure,구조물 충돌,STRUCTURE IMPACT
+cause.battery,배터리 소진,BATTERY DEPLETED
+cause.strike,자폭 돌입,SELF-DESTRUCT RUN
+cause.ao,작전 구역 이탈,LEFT AO COVERAGE

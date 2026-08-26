@@ -286,10 +286,12 @@ test('T6 카메라 모드 — BW → COLOR → THRM 순환과 스크린샷 3장'
     window.__debug.flight.respawn();
   });
 
-  // 트럭 앞 42m — 열원(엔진 0.98)이 화면에 있어야 4단 구조를 눈으로 볼 수 있다.
+  // 3번 트럭 앞 — 열원(엔진 0.98)이 화면에 있어야 4단 구조를 눈으로 볼 수 있다.
+  // ⚠️ 위협 사선 밖이어야 한다: T7 이후 (120,-178)은 A1 위험 반경 안이라
+  // 모드 순환 도중 격추 → 디브리핑 전환(T8c) → HUD 소멸로 테스트가 죽는다.
   await page.evaluate(async () => {
     const t = window.__debug.flight.telemetry();
-    t.pos.set(120, 14, -178);
+    t.pos.set(122, 14, -346);
     t.vel.set(0, 0, 0);
     t.yaw = 0;
     const n = window.__debug.frame + 3;
@@ -540,18 +542,22 @@ test('T8a 자폭 돌입 — 트럭에 박으면 격파되고 TGT DOWN 이 뜬다
       t.vel.set(0, 0, -14);
       await new Promise((r) => requestAnimationFrame(r));
     }
+    // crash 와 같은 프레임의 HUD — 다음 rAF 를 기다리면 디브리핑 전환과 경주하게 된다
+    await new Promise((r) => requestAnimationFrame(r));
     return {
       crashed: window.__debug.flight.crashed(),
       strike: window.__debug.flight.strike(),
+      hudStatus: document.querySelector('.hud-tl')?.textContent ?? '',
     };
   });
 
   expect(result.crashed, '돌입했는데 기폭이 없다').toBe('자폭 돌입');
   expect(result.strike.struck).toBe(true);
   expect(result.strike.targetsAlive, '격파됐는데 표적 수가 그대로다').toBe(2);
-
-  // 화면: 정지 화면 위 상태가 NO LINK 가 아니라 TGT DOWN — 실패가 아니라 완수다
-  await expect(page.locator('#hud .hud-tl')).toContainText('TGT DOWN');
+  // 화면: 정지 화면 위 상태가 NO LINK 가 아니라 TGT DOWN — 실패가 아니라 완수다.
+  // ⚠️ crash 2.5초(벽시계) 뒤 디브리핑으로 넘어가며 HUD 가 사라진다(T8c) —
+  // ~1fps 컨테이너에서 locator 왕복은 그 창을 놓치므로 crash 프레임에서 동기로 읽는다.
+  expect(result.hudStatus, 'TGT DOWN 이 화면에 없다').toContain('TGT DOWN');
   await page.screenshot({ path: 'tests/__screenshots__/t8a-strike.png' });
 
   // 리스폰 후: 기체는 새것, 격파는 유지 (미션 재시작은 T8c 의 몫)
@@ -627,4 +633,79 @@ test('T8b 작전 구역 — 경계 근처에서 맵 끝이 화면에 보이지 �
   // 판정은 눈으로 한다 (CLAUDE.md 검증 절) — 여기서는 렌더가 죽지 않았다는 것만 고정
   const render = await page.evaluate(() => window.__debug.render);
   expect(render.triangles).toBeGreaterThan(50_000);
+});
+
+/**
+ * T8c 완료 조건: M2 1차수 클리어 가능.
+ * 전체 루프를 브라우저에서 완주한다: 격파 → 정지 화면 → 디브리핑(임무 완수) →
+ * 재출격 → 링크 재수립 → 새 출격(월드 리셋).
+ */
+test('T8c 미션 루프 — 격파하면 디브리핑이 뜨고, 재출격하면 처음부터다', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForFunction(() => window.__debug?.ready === true, null, { timeout: 60_000 });
+  await page.evaluate(() => {
+    window.__debug.flight.setWindCalm();
+    window.__debug.flight.respawn();
+  });
+
+  // 선두 트럭에 박는다 (T8a 와 같은 압축 궤적)
+  await page.evaluate(async () => {
+    const t = window.__debug.flight.telemetry();
+    let z = -214;
+    t.pos.set(120, t.pos.y + (2.5 - t.agl), z);
+    t.yaw = 0;
+    const deadline = window.__debug.frame + 60;
+    while (window.__debug.frame < deadline && !window.__debug.flight.crashed()) {
+      z -= 2;
+      t.pos.set(120, t.pos.y, z);
+      t.vel.set(0, 0, -14);
+      await new Promise((r) => requestAnimationFrame(r));
+    }
+  });
+  expect(await page.evaluate(() => window.__debug.flight.crashed())).toBe('자폭 돌입');
+
+  // 정지 화면 2.5초 뒤 디브리핑 — 완수 판정과 격파 수가 찍힌다
+  await page.waitForFunction(() => window.__debug.state.screen === 'debrief', null, { timeout: 30_000 });
+  const panel = page.locator('#debrief');
+  await expect(panel.locator('.db-result')).toContainText('임무 완수');
+  await expect(panel).toContainText('격파 1/1');
+  await page.screenshot({ path: 'tests/__screenshots__/t8c-debrief-win.png' });
+
+  // 재출격 → 링크 재수립 → 새 출격. 월드가 새로 지어져 표적 3대가 돌아온다
+  await panel.locator('.db-btn').click();
+  await page.waitForFunction(() => window.__debug.state.screen === 'flight', null, { timeout: 60_000 });
+  await page.waitForFunction(() => window.__debug?.ready === true, null, { timeout: 60_000 });
+  const fresh = await page.evaluate(() => window.__debug.flight.strike());
+  expect(fresh.struck, '재출격인데 이전 격파 상태가 남아 있다').toBe(false);
+  expect(fresh.targetsAlive, '재출격인데 표적이 복원되지 않았다').toBe(3);
+});
+
+test('T8c 미션 루프 — 위협에 격추되면 원인 1줄과 권고가 나온다 (GDD 4.5 규칙 4)', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForFunction(() => window.__debug?.ready === true, null, { timeout: 60_000 });
+  await page.evaluate(() => {
+    window.__debug.flight.setWindCalm();
+    window.__debug.flight.respawn();
+  });
+
+  // A1(104,-150) 사선에 노출 고도로 머문다 — 조준 0.9초 뒤 격추된다
+  await page.evaluate(async () => {
+    const deadline = window.__debug.frame + 300;
+    while (window.__debug.frame < deadline && !window.__debug.flight.crashed()) {
+      const t = window.__debug.flight.telemetry();
+      t.pos.set(104, t.pos.y + (14 - t.agl), -128);
+      t.vel.set(0, 0, 0);
+      await new Promise((r) => requestAnimationFrame(r));
+    }
+  });
+  expect(await page.evaluate(() => window.__debug.flight.crashed())).toBe('피격');
+
+  await page.waitForFunction(() => window.__debug.state.screen === 'debrief', null, { timeout: 30_000 });
+  const panel = page.locator('#debrief');
+  await expect(panel.locator('.db-result')).toContainText('임무 실패');
+  // 원인 1줄: "격추 원인: 산탄총 — 접근 고도 14m" + 권고
+  await expect(panel).toContainText('산탄총');
+  await expect(panel).toContainText('접근 고도');
+  await expect(panel).toContainText('권고');
+  await page.screenshot({ path: 'tests/__screenshots__/t8c-debrief-loss.png' });
 });

@@ -1,0 +1,82 @@
+import { expect, test } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+import { MissionRunner } from '../src/mission/MissionRunner';
+import { M2_1 } from '../src/data/missions';
+
+/**
+ * 미션 러너 — T8c. GDD 4.5 규칙 4: 실패가 가르친다.
+ * 격추 시 원인 1줄의 **재료**(키+수치)가 빠짐없이 조립되는지 본다.
+ */
+
+const STRING_KEYS = new Set(
+  readFileSync('docs/strings_master.csv', 'utf8')
+    .split('\n')
+    .slice(1)
+    .map((line) => line.split(',')[0].trim())
+    .filter(Boolean),
+);
+
+test('자폭 돌입으로 목표를 채우면 완수다 — 기체 손실은 성공의 일부', () => {
+  const runner = new MissionRunner(M2_1);
+  runner.onStrike();
+  const d = runner.finish('자폭 돌입', 42.4);
+  expect(d.cleared).toBe(true);
+  expect(d.kills).toBe(1);
+  expect(d.goal).toBe(M2_1.destroyGoal);
+  expect(d.flightSec).toBe(42);
+});
+
+test('목표 미달로 죽으면 실패 — 원인 키가 CSV 에 실제로 있다', () => {
+  for (const [reason, key] of [
+    ['지면 충돌', 'cause.ground'],
+    ['구조물 충돌', 'cause.structure'],
+    ['배터리 소진', 'cause.battery'],
+    ['작전 구역 이탈', 'cause.ao'],
+  ] as const) {
+    const runner = new MissionRunner(M2_1);
+    const d = runner.finish(reason, 10);
+    expect(d.cleared).toBe(false);
+    expect(d.causeKey).toBe(key);
+    expect(STRING_KEYS.has(d.causeKey), `원인 키가 CSV 에 없다: ${d.causeKey}`).toBe(true);
+  }
+});
+
+test('위협 격추는 상세가 우선한다 — "원인 + 접근 고도 + 권고" 1줄의 재료', () => {
+  const runner = new MissionRunner(M2_1);
+  runner.onThreatHit({
+    causeKey: 'threat.a1.name',
+    agl: 12.3,
+    adviceKey: 'threat.a1.advice',
+    adviceParams: [30, 6],
+  });
+  const d = runner.finish('피격', 20);
+  expect(d.threat, '피격인데 위협 상세가 없다').toBeTruthy();
+  expect(STRING_KEYS.has(d.threat!.causeKey)).toBe(true);
+  expect(STRING_KEYS.has(d.threat!.adviceKey)).toBe(true);
+  expect(d.threat!.agl).toBeCloseTo(12.3, 5);
+});
+
+test('위협이 아닌 죽음에는 위협 상세를 싣지 않는다 — 이전 출격의 잔재 방지', () => {
+  const runner = new MissionRunner(M2_1);
+  runner.onThreatHit({ causeKey: 'threat.a1.name', agl: 10, adviceKey: 'threat.a1.advice', adviceParams: [] });
+  // 조준은 받았지만 실제 죽음은 지면 충돌
+  const d = runner.finish('지면 충돌', 5);
+  expect(d.threat).toBeNull();
+});
+
+test('reset 은 격파 수까지 처음부터다', () => {
+  const runner = new MissionRunner(M2_1);
+  runner.onStrike();
+  runner.finish('자폭 돌입', 10);
+  runner.reset();
+  const d = runner.finish('배터리 소진', 3);
+  expect(d.kills).toBe(0);
+  expect(d.cleared).toBe(false);
+});
+
+test('미션 정의 규약 — 위협 상한(GDD 4.5 규칙 3)과 문자열 키', () => {
+  expect(M2_1.threats.length).toBeLessThanOrEqual(3);
+  expect(M2_1.threats.length).toBeGreaterThanOrEqual(1);
+  expect(STRING_KEYS.has(M2_1.titleKey), `미션 제목 키가 CSV 에 없다: ${M2_1.titleKey}`).toBe(true);
+  expect(M2_1.destroyGoal).toBeGreaterThan(0);
+});

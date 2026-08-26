@@ -265,3 +265,64 @@ html, body {
 @media (orientation: portrait) {
   #rotate-notice { display: flex; }
 }
+
+/* ── 디브리핑 (T8c) — 정지 노이즈 화면 위 무전 텍스트 ─────
+   04 문서 금지 목록 준수: 사각 테두리, 그림자·그라데이션 없음. */
+#debrief {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+}
+
+.db-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55em;
+  min-width: min(320px, 72vw);
+  padding: clamp(16px, 3vh, 26px) clamp(20px, 4vw, 34px);
+  border: 1px solid var(--c-line);
+  background: rgba(10, 15, 11, 0.88);
+  font-family: var(--font-mono);
+  letter-spacing: 0.08em;
+}
+
+.db-title {
+  font-size: clamp(10px, 1.4vw, 13px);
+  color: var(--c-text-dim);
+  letter-spacing: 0.22em;
+}
+
+.db-result {
+  font-size: clamp(17px, 3vw, 26px);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  margin-bottom: 0.25em;
+}
+.db-result.ok { color: var(--c-text-primary); }
+.db-result.bad { color: var(--c-accent-red); }
+
+.db-line { font-size: clamp(11px, 1.6vw, 14px); color: var(--c-text-white); }
+.db-line.red { color: var(--c-accent-red); }
+.db-line.amb { color: var(--c-accent-amber); }
+
+.db-btn {
+  margin-top: 0.9em;
+  padding: 0.55em 1.2em;
+  background: transparent;
+  border: 1px solid var(--c-text-primary);
+  border-radius: 0;
+  color: var(--c-text-primary);
+  font-family: var(--font-mono);
+  font-size: clamp(11px, 1.6vw, 14px);
+  letter-spacing: 0.18em;
+  cursor: pointer;
+}
+.db-btn:active,
+.db-btn:focus-visible {
+  border-color: var(--c-accent-amber);
+  color: var(--c-accent-amber);
+  outline: none;
+}

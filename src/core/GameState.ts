@@ -13,6 +13,30 @@ export type ScreenName =
   | 'flight'
   | 'debrief';
 export type FlightMode = 'arcade' | 'pro';
+
+/**
+ * 출격 결과 — 디브리핑 재료. **문장이 아니라 키와 수치다** (4개국어 대비).
+ * `core` 에 있는 이유: 화면 간 공유 상태(GameState)의 일부인데, core 가
+ * mission 을 부르면 계층이 역전된다. 조립(MissionRunner)은 mission/ 이 한다.
+ */
+export interface ThreatCauseDetail {
+  causeKey: string;
+  agl: number;
+  adviceKey: string;
+  adviceParams: readonly number[];
+}
+
+export interface DebriefData {
+  missionId: string;
+  titleKey: string;
+  cleared: boolean;
+  kills: number;
+  goal: number;
+  flightSec: number;
+  /** 손실 원인 키 (`cause.*`). 위협 격추면 threat 상세가 우선한다 */
+  causeKey: string;
+  threat: ThreatCauseDetail | null;
+}
 export type CamMode = 'color' | 'thermal' | 'bw';
 
 /**
@@ -26,6 +50,8 @@ export class GameState {
   signalQuality = 1;
   paused = false;
   profile: PlayerProfile | null = null;
+  /** 마지막 출격 결과 — FlightScreen 이 쓰고 DebriefScreen 이 읽는다. 화면 간 유일한 통로 */
+  debrief: DebriefData | null = null;
 
   snapshot(): Record<string, unknown> {
     return {

@@ -34,6 +34,14 @@ export function t(key: string, locale: Locale = current): string {
   return table.get(key)?.[locale] || table.get(key)?.ko || key;
 }
 
+/**
+ * 자리표시자 치환 — `debrief.kills,격파 {0}/{1}` 처럼 수치가 낀 문장용.
+ * 위협·디브리핑이 문장 대신 키+수치를 넘기는 이유가 이 함수다(4개국어 대비).
+ */
+export function fmt(key: string, ...args: (string | number)[]): string {
+  return t(key).replace(/\{(\d+)\}/g, (_, i: string) => String(args[Number(i)] ?? ''));
+}
+
 export function has(key: string): boolean {
   return table.has(key);
 }

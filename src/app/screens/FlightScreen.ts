@@ -13,7 +13,9 @@ import { Hud } from '@/ui/Hud';
 import { TargetOverlay } from '@/ui/TargetOverlay';
 import { ThreatOverlay } from '@/ui/ThreatOverlay';
 import { ThreatRunner, type ThreatFrame } from '@/mission/threats/ThreatRunner';
-import { buildDemoThreats } from '@/mission/DemoThreats';
+import { buildThreats } from '@/mission/buildThreats';
+import { MissionRunner } from '@/mission/MissionRunner';
+import { M2_1 } from '@/data/missions';
 import { destroyTarget, updateTargets } from '@/world/Targets';
 import { findImpact } from '@/mission/Strike';
 import { AoLimit, type AoState } from '@/mission/AoLimit';
@@ -49,6 +51,9 @@ export class FlightScreen implements Screen {
   private threatFrame: ThreatFrame = { jam: 0, kill: null, warning: null, warnings: [] };
   /** 이번 출격에서 자폭 돌입이 성립했는가 — HUD 가 NO LINK 대신 TGT DOWN 을 띄운다 */
   private struck = false;
+  private mission!: MissionRunner;
+  /** crash 후 디브리핑 전환까지의 벽시계 기준점 */
+  private crashedAtWall: number | null = null;
   private readonly ao = new AoLimit();
   private aoState: AoState = { outside: false, progress: 0, secondsLeft: 3, distanceToEdge: 1e9, warning: false };
 
@@ -79,9 +84,11 @@ export class FlightScreen implements Screen {
     };
     this.flight = this.models[ctx.state.flightMode];
 
-    // 위협은 이 화면이 아니라 `mission/` 이 소유한다 — 여기서는 감각 입력을 주고
-    // 결과(감쇠·격추)를 받을 뿐이다. T8 이 오면 배치가 MissionDef 로 옮겨 간다.
-    this.threats = new ThreatRunner(buildDemoThreats((x, z) => this.world.heightAt(x, z)));
+    // 위협 배치는 미션 정의가 갖는다 (T8c) — 여기서는 감각 입력을 주고 결과를 받을 뿐이다.
+    this.mission = new MissionRunner(M2_1);
+    this.threats = new ThreatRunner(
+      buildThreats(M2_1.threats, (x: number, z: number) => this.world.heightAt(x, z)),
+    );
 
     this.hudRoot = document.createElement('div');
     this.hudRoot.id = 'ingame';
@@ -152,6 +159,7 @@ export class FlightScreen implements Screen {
       if (impact) {
         destroyTarget(impact.target, this.world.registry, state.camMode === 'thermal');
         this.struck = true;
+        this.mission.onStrike();
         this.ctx.bus.emit('strike:hit', {
           distance: impact.distance,
           speed: t.spd,
@@ -193,6 +201,14 @@ export class FlightScreen implements Screen {
 
     if (this.world.vegetation.windUniform) {
       this.world.vegetation.windUniform.value = time.elapsed;
+    }
+
+    // SIGNAL LOST 정지 화면을 잠시 보여준 뒤 디브리핑으로 (GDD 4장 시그니처의 마지막 단).
+    // 벽시계다 — 저사양에서 시뮬 시간을 쓰면 이 2.5초가 수십 초가 된다(부트 게이트와 같은 함정).
+    if (this.crashedAtWall !== null && time.wall - this.crashedAtWall > 2.5) {
+      this.crashedAtWall = null;
+      this.ctx.go('debrief');
+      return;
     }
 
     this.hud.update({
@@ -255,6 +271,12 @@ export class FlightScreen implements Screen {
     }
 
     if (frame.kill) {
+      this.mission.onThreatHit({
+        causeKey: frame.kill.causeKey,
+        agl: frame.kill.agl,
+        adviceKey: frame.kill.adviceKey,
+        adviceParams: frame.kill.adviceParams,
+      });
       bus.emit('threat:hit', {
         id: frame.kill.threatId,
         causeKey: frame.kill.causeKey,
@@ -291,9 +313,14 @@ export class FlightScreen implements Screen {
   private crash(reason: CrashReason): void {
     if (this.crashReason) return;
     this.crashReason = reason;
+    this.crashedAtWall = this.ctx.time.wall;
     this.ctx.renderer.uniforms.uDead.value = 1;
     this.ctx.platform.vibrate([90, 60, 140]);
     this.ctx.bus.emit('flight:crashed', { reason });
+    // 출격 종료 확정 — 자폭 드론이라 모든 출격은 손실로 끝난다 (T8c)
+    const debrief = this.mission.finish(reason, this.elapsed);
+    this.ctx.state.debrief = debrief;
+    this.ctx.bus.emit('mission:ended', { missionId: debrief.missionId, cleared: debrief.cleared });
   }
 
   // ── 디버그·테스트용 표면 ──
@@ -311,6 +338,8 @@ export class FlightScreen implements Screen {
     this.threatFrame = { jam: 0, kill: null, warning: null, warnings: [] };
     this.ao.reset();
     this.aoState = { outside: false, progress: 0, secondsLeft: 3, distanceToEdge: 1e9, warning: false };
+    this.crashedAtWall = null;
+    this.mission.reset();
     for (const m of Object.values(this.models)) m.reset(this.spawnPoint, Math.PI);
     this.ctx.bus.emit('flight:spawned');
   }
