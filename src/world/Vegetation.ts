@@ -12,7 +12,8 @@ import { HEAT } from '@/data/thermal';
  * 개별 Mesh 로 만들면 여기서만 수만 콜이 난다.
  */
 
-const CROWNS = [0x4a6330, 0x3f5a2c, 0x577038, 0x6b6f35, 0x3a5230, 0x7a7a3c, 0x5d6b2e];
+// 아트 패스 1: 채도를 뺀 회록. 선명한 초록은 "살아 있는 여름"이라 전장 팔레트에서 튄다.
+const CROWNS = [0x4c5a3a, 0x445236, 0x555f3e, 0x5e6042, 0x414f38, 0x666747, 0x525c3a];
 const BARK = [0x4d3d2a, 0x574734, 0x413425, 0x5f5140];
 const GRASS_N = 18000;
 
@@ -132,10 +133,11 @@ function buildBushes(scene: THREE.Scene, registry: ThermalRegistry): THREE.Insta
     if (Math.abs(x - 120) < 11) continue;
     const y = terrainH(x, z);
     const dry = fbm(x * 0.01 + 100, z * 0.01 + 100, 3) < 0.42;
+    // 아트 패스 1: 녹색 채도를 뺀다. 민트빛 매끈한 덩어리가 "로우폴리 에셋"의 주범이었다.
     col.setRGB(
-      dry ? rnd(0.55, 0.72) : rnd(0.24, 0.38),
-      dry ? rnd(0.5, 0.64) : rnd(0.36, 0.5),
-      dry ? rnd(0.26, 0.38) : rnd(0.14, 0.24),
+      dry ? rnd(0.5, 0.62) : rnd(0.26, 0.35),
+      dry ? rnd(0.46, 0.56) : rnd(0.3, 0.4),
+      dry ? rnd(0.28, 0.36) : rnd(0.17, 0.24),
     );
     dummy.position.set(x, y + rnd(0.5, 1.3), z);
     dummy.rotation.set(rnd(0, 3), rnd(0, 3), rnd(0, 3));

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { DAYLIGHT } from '@/data/atmosphere';
 
 /**
  * 하늘돔 — 수직 그라데이션 1콜. 열화상에서 하늘은 거의 순흑이므로 별도 처리한다(T6).
@@ -15,8 +16,8 @@ export interface SkyDome {
 export function createSkyDome(): SkyDome {
   const material = new THREE.ShaderMaterial({
     uniforms: {
-      cTop: { value: new THREE.Color(0x4d7ea8) },
-      cHor: { value: new THREE.Color(0xb9c6c2) },
+      cTop: { value: new THREE.Color(DAYLIGHT.skyTop) },
+      cHor: { value: new THREE.Color(DAYLIGHT.skyHorizon) },
     },
     vertexShader: /* glsl */ `
       varying float h;

@@ -1,4 +1,5 @@
 import type { World } from './SceneBuilder';
+import { DAYLIGHT } from '@/data/atmosphere';
 import type { CamMode } from '@/core/GameState';
 
 /**
@@ -44,12 +45,12 @@ const LOOK = {
     sunColor: 0xffffff,
   },
   daylight: {
-    skyTop: 0x4d7ea8,
-    skyHorizon: 0xb9c6c2,
-    fog: 0xb3bfb6,
+    skyTop: DAYLIGHT.skyTop,
+    skyHorizon: DAYLIGHT.skyHorizon,
+    fog: DAYLIGHT.fog,
     hemi: 1.05,
     sun: 1.15,
-    sunColor: 0xfff2d8,
+    sunColor: DAYLIGHT.sunColor,
   },
 } as const;
 

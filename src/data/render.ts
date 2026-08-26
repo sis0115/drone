@@ -13,7 +13,9 @@ export const CAMERA = {
 } as const;
 
 /** 안개 — 프로토타입 실측값. 260/1150 으로 잡으면 원경이 과하게 선명해진다. */
-export const FOG = { color: 0xa8b5ac, near: 60, far: 540 } as const;
+// 아트 패스 1 에서 색만 0xa8b5ac → 0xa6a99c (DEVLOG 2026-08-26).
+// near/far 는 프로토타입 검증값 그대로 — 시야 거리를 바꾸면 성능 예산이 흔들린다.
+export const FOG = { color: 0xa6a99c, near: 60, far: 540 } as const;
 
 export const SIGNAL = {
   /** 이 거리부터 감쇠 시작 (m) */

@@ -6,11 +6,15 @@ import { fbm, hash2 } from './noise';
  * 전부 캔버스에 그려서 만든다. 계수는 프로토타입 v0.7 그대로.
  */
 
-/** 지면 팔레트: 마른 금빛 ↔ 올리브 녹색 (06 문서 레퍼런스) */
-const DRY = [172, 150, 96];
-const GRN = [86, 108, 54];
-const DRY2 = [196, 178, 124];
-const GRN2 = [62, 84, 42];
+/**
+ * 지면 팔레트 — 아트 패스 1 (DEVLOG 2026-08-26).
+ * 프로토타입의 금빛↔올리브 대비는 건강한 농촌으로 읽혔다. 전장 영상의 지면은
+ * 계절이 죽어 있다 — 마른 쪽은 회갈, 녹색 쪽은 채도 빠진 올리브. 둘의 거리도 좁힌다.
+ */
+const DRY = [151, 138, 105];
+const GRN = [88, 93, 60];
+const DRY2 = [172, 158, 122];
+const GRN2 = [66, 76, 46];
 
 function canvas(w: number, h: number): { c: HTMLCanvasElement; x: CanvasRenderingContext2D } {
   const c = document.createElement('canvas');
@@ -122,9 +126,9 @@ export function grassTex(): THREE.CanvasTexture {
     const len = 22 + Math.random() * 66;
     const lean = (Math.random() - 0.5) * 30;
     const dry = Math.random() < 0.42;
-    const r = dry ? 150 + Math.random() * 60 : 70 + Math.random() * 50;
-    const g = dry ? 138 + Math.random() * 50 : 105 + Math.random() * 55;
-    const b = dry ? 76 + Math.random() * 40 : 44 + Math.random() * 32;
+    const r = dry ? 138 + Math.random() * 46 : 74 + Math.random() * 40;
+    const g = dry ? 126 + Math.random() * 40 : 92 + Math.random() * 42;
+    const b = dry ? 88 + Math.random() * 34 : 52 + Math.random() * 28;
     x.strokeStyle = `rgba(${r | 0},${g | 0},${b | 0},${0.55 + Math.random() * 0.45})`;
     x.lineWidth = 0.8 + Math.random() * 2.0;
     x.lineCap = 'round';
@@ -141,6 +145,33 @@ export function grassTex(): THREE.CanvasTexture {
     }
   }
   return new THREE.CanvasTexture(c);
+}
+
+/** 연기 기둥 — 세로로 찢긴 반투명 뭉게 알파. 원경 전용이라 128px 로 충분하다. */
+export function smokeTex(): THREE.CanvasTexture {
+  const w = 64;
+  const h = 128;
+  const { c, x } = canvas(w, h);
+  const img = x.createImageData(w, h);
+  const d = img.data;
+  for (let j = 0; j < h; j++)
+    for (let i = 0; i < w; i++) {
+      const k = (j * w + i) * 4;
+      const n = fbm(i * 0.09, j * 0.045, 4);
+      // 위로 갈수록 옅어지고, 좌우 가장자리가 찢어진다
+      const edge = Math.sin((i / w) * Math.PI);
+      const rise = 1 - j / h;
+      const a = Math.max(0, (n - 0.34) * 2.2) * edge * (0.35 + rise * 0.65);
+      const v = 120 + n * 90;
+      d[k] = v;
+      d[k + 1] = v;
+      d[k + 2] = v * 0.98;
+      d[k + 3] = Math.min(255, a * 255);
+    }
+  x.putImageData(img, 0, 0);
+  const tx = new THREE.CanvasTexture(c);
+  tx.wrapS = THREE.RepeatWrapping;
+  return tx;
 }
 
 /** 벽 — 스투코 + 창문 격자 */

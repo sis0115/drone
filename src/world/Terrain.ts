@@ -70,7 +70,7 @@ export function buildTerrain(scene: THREE.Scene, registry: ThermalRegistry): Ter
 
   // 물은 열화상에서 검게 나와 지형 판별의 핵심 단서가 된다 (06 문서 1.1).
   const water = registry.registerAs(
-    new THREE.Mesh(new THREE.PlaneGeometry(700, 420), new THREE.MeshLambertMaterial({ color: 0x40626f })),
+    new THREE.Mesh(new THREE.PlaneGeometry(700, 420), new THREE.MeshLambertMaterial({ color: 0x4a5651 })),
     'water',
   );
   water.rotation.x = -Math.PI / 2;

@@ -4,10 +4,12 @@ import { createSkyDome, type SkyDome } from './SkyDome';
 import { buildTerrain, terrainH, type TerrainHandles } from './Terrain';
 import { FOG } from '@/data/render';
 import { WORLD_SEED } from '@/data/world';
+import { DAYLIGHT } from '@/data/atmosphere';
 import { buildVegetation, type VegetationHandles } from './Vegetation';
 import { buildProps, type PropHandles } from './Props';
 import { buildTargets, type Target } from './Targets';
 import { AoCollector } from './Ao';
+import { buildScars } from './Scars';
 import { seedWorld } from './noise';
 import type { Obstacle } from './Props';
 
@@ -59,6 +61,8 @@ export function buildWorld(options: { seed?: number } = {}): World {
   const ao = new AoCollector();
   const props = buildProps(scene, registry, ao);
   const vegetation = buildVegetation(scene, registry, ao);
+  // 전장의 흔적 — AO(그을림)를 쓰므로 ao.build() 전에 와야 한다
+  buildScars(scene, registry, ao, props.obstacles);
   ao.build(scene, registry);
 
   const targets = buildTargets(scene, registry);
@@ -89,13 +93,13 @@ export function buildWorld(options: { seed?: number } = {}): World {
 const LIGHT_SCALE = Math.PI;
 
 function addAmbient(scene: THREE.Scene): THREE.HemisphereLight {
-  const hemi = new THREE.HemisphereLight(0xbcd4e6, 0x4a5236, 1.05 * LIGHT_SCALE);
+  const hemi = new THREE.HemisphereLight(DAYLIGHT.hemiSky, DAYLIGHT.hemiGround, 1.05 * LIGHT_SCALE);
   scene.add(hemi);
   return hemi;
 }
 
 function addSun(scene: THREE.Scene): THREE.DirectionalLight {
-  const sun = new THREE.DirectionalLight(0xfff2d8, 1.25 * LIGHT_SCALE);
+  const sun = new THREE.DirectionalLight(DAYLIGHT.sunColor, 1.25 * LIGHT_SCALE);
   sun.position.set(-70, 100, 50);
   sun.castShadow = true;
   // 1024 는 프로토타입에서 검증된 값이다. 2048 로 올리면 그림자 맵 픽셀이 4배가 된다.
