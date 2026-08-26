@@ -42,6 +42,9 @@ export class App {
     setLocale(state.profile.settings.lang as Locale);
 
     this.renderer = new FpvRenderer(canvas);
+    this.renderer.setVideoQuality(
+      state.profile.settings.video === 'analog' ? 'analog' : 'standard',
+    );
     // 가로 고정은 브라우저가 거부할 수 있다(iOS 는 아예 없다) — 안내 한 장을 항상 띄워 둔다
     new RotateNotice(overlay);
     this.keyboard.onAction = (code) => this.onKeyAction?.(code);

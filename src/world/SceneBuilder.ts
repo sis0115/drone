@@ -93,13 +93,19 @@ export function buildWorld(options: { seed?: number } = {}): World {
  * 살짝 낮게(-1.2m) 깔아 실제 지형과 z-파이팅하지 않는다.
  */
 function addHorizonSkirt(scene: THREE.Scene, registry: ThermalRegistry): void {
+  /**
+   * ⚠️ 원판(Circle)이 아니라 **링**이다. 원판 버전이 저지대 지형을 덮어
+   * 스폰 일대가 통째로 하얗게 날아갔다(아트 패스 3 실측 — 사용자가 본
+   * "화질 나쁜 첫 화면"의 정체가 이것이었다). 안반경을 지형(±800) 밖에 두면
+   * 지형 영역 안에는 지오메트리 자체가 없어 원천적으로 덮을 수 없다.
+   */
   const skirt = new THREE.Mesh(
-    new THREE.CircleGeometry(3000, 24),
+    new THREE.RingGeometry(820, 3000, 24, 1),
     // 지면 팔레트의 중간값 — 안개에 녹아들며 실제 지형과 이어져 보인다
     new THREE.MeshLambertMaterial({ color: 0x8d8668 }),
   );
   skirt.rotation.x = -Math.PI / 2;
-  skirt.position.y = -1.2;
+  skirt.position.y = 0;
   scene.add(skirt);
   registry.register(skirt, 0.6);
 }

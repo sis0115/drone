@@ -27,11 +27,14 @@ export function groundTex(sz: number): THREE.CanvasTexture {
   const { c, x } = canvas(sz, sz);
   const img = x.createImageData(sz, sz);
   const d = img.data;
+  // 구조 주파수는 512 기준으로 정규화 — 해상도를 올려도 무늬의 월드 크기는 같고
+  // 픽셀 그레인(fine)만 세밀해진다 (아트 패스 3: "같은 무늬, 더 선명하게").
+  const q = 512 / sz;
   for (let j = 0; j < sz; j++)
     for (let i = 0; i < sz; i++) {
       const k = (j * sz + i) * 4;
-      const patch = fbm(i * 0.01, j * 0.01, 3); // 저주파: 마른/녹색 구역
-      const det = fbm(i * 0.16, j * 0.16, 4); // 중주파: 덤불 덩어리
+      const patch = fbm(i * q * 0.01, j * q * 0.01, 3); // 저주파: 마른/녹색 구역
+      const det = fbm(i * q * 0.16, j * q * 0.16, 4); // 중주파: 덤불 덩어리
       const fine = hash2(i * 3.1, j * 2.7); // 고주파: 잎 알갱이
       const t = Math.max(0, Math.min(1, (patch - 0.38) * 3.2));
       let r = DRY[0] * (1 - t) + GRN[0] * t;
@@ -41,7 +44,7 @@ export function groundTex(sz: number): THREE.CanvasTexture {
        * 경작지 패치워크 — 항공에서 이 땅을 "농지"로 읽게 하는 것은 필지 경계다.
        * 저주파 노이즈를 계단화해 필지마다 명도를 살짝 다르게, 경계에는 어두운 골(농로/도랑).
        */
-      const field = fbm(i * 0.006 + 77, j * 0.006 + 77, 2);
+      const field = fbm(i * q * 0.006 + 77, j * q * 0.006 + 77, 2);
       const cell = Math.floor(field * 7);
       const fieldTone = 0.9 + (hash2(cell * 13.7, cell * 7.1) - 0.5) * 0.22;
       r *= fieldTone;
@@ -55,7 +58,7 @@ export function groundTex(sz: number): THREE.CanvasTexture {
       }
       // 쟁기 이랑 — 일부 필지에만, 한 방향 줄무늬. 있는 밭과 없는 밭이 섞여야 산다
       if (hash2(cell * 3.3, 9.1) > 0.5) {
-        const rowDir = hash2(cell * 5.9, 1.7) > 0.5 ? i + j * 0.35 : j - i * 0.28;
+        const rowDir = (hash2(cell * 5.9, 1.7) > 0.5 ? i + j * 0.35 : j - i * 0.28) * q;
         const row = Math.sin(rowDir * 0.55) * 0.5 + 0.5;
         const amp = 1 + (row - 0.5) * 0.12;
         r *= amp;
@@ -89,11 +92,12 @@ export function roadTex(sz: number): THREE.CanvasTexture {
   const { c, x } = canvas(sz, sz);
   const img = x.createImageData(sz, sz);
   const d = img.data;
+  const q = 256 / sz; // 구조 주파수 정규화 (기준 256) — 무늬 월드 크기 불변
   for (let j = 0; j < sz; j++)
     for (let i = 0; i < sz; i++) {
       const k = (j * sz + i) * 4;
       const n = hash2(i * 1.7, j * 1.3);
-      const f = fbm(i * 0.05, j * 0.05, 3);
+      const f = fbm(i * q * 0.05, j * q * 0.05, 3);
       const u = i / sz; // 0(좌측 갓길) ~ 1(우측 갓길)
       let v = 116 + (f - 0.5) * 40 + (n - 0.5) * 24;
 
@@ -105,13 +109,13 @@ export function roadTex(sz: number): THREE.CanvasTexture {
         }
       }
       // 보수 패치 — 진하고 매끈한 직사각 구획 (저주파 노이즈로 자리를 정한다)
-      const patch = fbm(i * 0.02 + 40, j * 0.008 + 40, 2);
+      const patch = fbm(i * q * 0.02 + 40, j * q * 0.008 + 40, 2);
       if (patch > 0.62) v = v * 0.55 + 26;
       // 크랙 망 — fbm 등고선의 능선만 얇게 어둡힌다
-      const crack = fbm(i * 0.11, j * 0.09, 4);
+      const crack = fbm(i * q * 0.11, j * q * 0.09, 4);
       if (Math.abs(crack - 0.5) < 0.012) v -= 34;
       // 포트홀 — 아주 드문 검은 점
-      if (hash2(i * 0.31, j * 0.27) > 0.9965) v -= 60;
+      if (hash2(i * q * 0.31, j * q * 0.27) > 0.9965) v -= 60;
 
       const edge = Math.min(i, sz - 1 - i) / (sz * 0.5);
       if (edge < 0.13) v -= (0.13 - edge) * 250; // 가장자리 흙 침식
@@ -121,7 +125,7 @@ export function roadTex(sz: number): THREE.CanvasTexture {
       let g = v;
       let b = v * 0.96;
       // 바랜 중앙 점선 — 세로(j) 12px 주기 중 7px 만 칠하고, 닳아서 끊긴다
-      if (Math.abs(u - 0.5) < 0.014 && j % 12 < 7 && hash2(j * 0.7, 3.1) > 0.3) {
+      if (Math.abs(u - 0.5) < 0.014 && Math.floor(j * q) % 12 < 7 && hash2(Math.floor(j * q) * 0.7, 3.1) > 0.3) {
         const paint = 150 + (n - 0.5) * 40;
         r = Math.max(r, paint);
         g = Math.max(g, paint * 0.97);
@@ -143,11 +147,12 @@ export function dirtTex(sz: number): THREE.CanvasTexture {
   const { c, x } = canvas(sz, sz);
   const img = x.createImageData(sz, sz);
   const d = img.data;
+  const q = 256 / sz; // 구조 주파수 정규화
   for (let j = 0; j < sz; j++)
     for (let i = 0; i < sz; i++) {
       const k = (j * sz + i) * 4;
       const n = hash2(i * 2.1, j * 1.9);
-      const f = fbm(i * 0.06, j * 0.06, 3);
+      const f = fbm(i * q * 0.06, j * q * 0.06, 3);
       let r = 150 + (f - 0.5) * 54 + (n - 0.5) * 30;
       let g = 124 + (f - 0.5) * 46 + (n - 0.5) * 26;
       let b = 92 + (f - 0.5) * 38 + (n - 0.5) * 22;

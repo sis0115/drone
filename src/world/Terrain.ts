@@ -27,7 +27,7 @@ export interface TerrainHandles {
 }
 
 export function buildTerrain(scene: THREE.Scene, registry: ThermalRegistry): TerrainHandles {
-  const texGround = groundTex(512);
+  const texGround = groundTex(1024);
   texGround.repeat.set(60, 60);
 
   const geo = new THREE.PlaneGeometry(TER, TER, SEG, SEG);
@@ -87,7 +87,7 @@ export function buildTerrain(scene: THREE.Scene, registry: ThermalRegistry): Ter
 }
 
 function buildRoad(scene: THREE.Scene, registry: ThermalRegistry): THREE.Mesh {
-  const texRoad = roadTex(256);
+  const texRoad = roadTex(512);
   texRoad.repeat.set(1, 70);
 
   const geo = new THREE.PlaneGeometry(14, 1500, 1, 90);
@@ -118,7 +118,7 @@ function buildDirtPath(
   len: number,
   wid: number,
 ): THREE.Mesh {
-  const texDirt = dirtTex(256);
+  const texDirt = dirtTex(512);
   texDirt.repeat.set(2, 50);
 
   const geo = new THREE.PlaneGeometry(wid, len, 1, 60);

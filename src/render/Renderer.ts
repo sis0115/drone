@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { RT_W, RT_H, CAMERA } from '@/data/render';
+import { RT_W, RT_H, CAMERA, VIDEO_PRESETS, type VideoQuality } from '@/data/render';
 import { createPostFxMaterial, pushParams, type PostFxUniforms } from './FpvPostFX';
 import { DEFAULT, type PostFxParams } from '@/data/postfx';
 
@@ -22,8 +22,8 @@ export class FpvRenderer {
   scene: THREE.Scene;
   readonly camera: THREE.PerspectiveCamera;
 
-  private readonly rtA: THREE.WebGLRenderTarget;
-  private readonly rtPrev: THREE.WebGLRenderTarget;
+  private rtA: THREE.WebGLRenderTarget;
+  private rtPrev: THREE.WebGLRenderTarget;
   private readonly copyQuad: THREE.Mesh;
   private readonly copyScene = new THREE.Scene();
   private readonly composite: THREE.Mesh;
@@ -75,14 +75,8 @@ export class FpvRenderer {
 
     this.camera = new THREE.PerspectiveCamera(CAMERA.FOV, RT_W / RT_H, CAMERA.NEAR, CAMERA.FAR);
 
-    const opts: THREE.RenderTargetOptions = {
-      minFilter: THREE.LinearFilter,
-      magFilter: THREE.LinearFilter,
-      depthBuffer: true,
-      stencilBuffer: false,
-    };
-    this.rtA = new THREE.WebGLRenderTarget(RT_W, RT_H, opts);
-    this.rtPrev = new THREE.WebGLRenderTarget(RT_W, RT_H, { ...opts, depthBuffer: false });
+    this.rtA = this.makeTarget(RT_W, RT_H, true);
+    this.rtPrev = this.makeTarget(RT_W, RT_H, false);
 
     this.postMaterial = createPostFxMaterial();
     this.postMaterial.uniforms.tCur.value = this.rtA.texture;
@@ -101,8 +95,33 @@ export class FpvRenderer {
   }
 
   resize(width: number, height: number): void {
-    // 내부 RT는 480×270 고정. 바뀌는 것은 업스케일 대상인 캔버스뿐이다.
+    // 내부 RT는 프리셋 고정. 바뀌는 것은 업스케일 대상인 캔버스뿐이다.
     this.renderer.setSize(width, height, false);
+  }
+
+  private makeTarget(w: number, h: number, depth: boolean): THREE.WebGLRenderTarget {
+    return new THREE.WebGLRenderTarget(w, h, {
+      minFilter: THREE.LinearFilter,
+      magFilter: THREE.LinearFilter,
+      depthBuffer: depth,
+      stencilBuffer: false,
+    });
+  }
+
+  /**
+   * 내부 렌더 해상도 전환 (아트 패스 3). 3버퍼를 다시 만들고 텍스처를 다시 물린다.
+   * 종횡비(16:9)는 프리셋이 보장하므로 카메라는 그대로다.
+   */
+  setVideoQuality(quality: VideoQuality): void {
+    const { w, h } = VIDEO_PRESETS[quality];
+    if (this.rtA.width === w) return;
+    this.rtA.dispose();
+    this.rtPrev.dispose();
+    this.rtA = this.makeTarget(w, h, true);
+    this.rtPrev = this.makeTarget(w, h, false);
+    this.postMaterial.uniforms.tCur.value = this.rtA.texture;
+    this.postMaterial.uniforms.tPrev.value = this.rtPrev.texture;
+    (this.copyQuad.material as THREE.MeshBasicMaterial).map = this.rtA.texture;
   }
 
   /** 셰이더 유니폼 직접 접근. 비행·신호·모드가 매 프레임 여기에 쓴다. */

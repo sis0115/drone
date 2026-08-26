@@ -27,17 +27,24 @@ export interface PostFxParams {
   fov: number;
 }
 
+/**
+ * 아트 패스 3 (DEVLOG 2026-08-26): 상시 노이즈를 절반 이하로.
+ * 실기 피드백 — "화질이 안 좋아서 플레이 집중이 안 된다". 셰이더의 열화 항은
+ * 전부 `bad`(신호·버스트)에 곱해지므로, 기본값을 내려도 **신호가 무너질 때의
+ * 연출은 그대로다.** 열화는 상시 필터가 아니라 신호 상태의 정보다.
+ * (프로토타입 v0.7 원값: grain .1 / scan .09 / vign 1.0 / chroma .35 / block .55 / jitter .55)
+ */
 export const DEFAULT: PostFxParams = {
-  grain: 0.1,
-  scan: 0.09,
-  vign: 1.0,
-  chroma: 0.35,
-  blockAmt: 0.55,
+  grain: 0.045,
+  scan: 0.04,
+  vign: 0.75,
+  chroma: 0.16,
+  blockAmt: 0.4,
   blockRate: 7.0,
-  ghost: 0.45,
+  ghost: 0.35,
   freezeAmt: 0.6,
-  jitter: 0.55,
-  rolling: 0.09,
+  jitter: 0.32,
+  rolling: 0.05,
   jello: 0.55,
   motionSmear: 0.4,
   dropRate: 0.4,

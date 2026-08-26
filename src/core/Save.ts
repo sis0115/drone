@@ -24,7 +24,7 @@ export interface PlayerProfile {
   payloadInventory: Record<string, number>;
   loadout: Loadout;
   campaign: Record<string, { stars: number; cleared: boolean }>;
-  settings: { lang: string; stickMode: number; assist: string; haptics: boolean };
+  settings: { lang: string; stickMode: number; assist: string; haptics: boolean; video: string };
   stats: {
     totalKills: number;
     confirmedKills: number;
@@ -50,14 +50,18 @@ export function defaultProfile(): PlayerProfile {
       payloads: [],
     },
     campaign: {},
-    settings: { lang: 'ko', stickMode: 2, assist: 'full', haptics: true },
+    settings: { lang: 'ko', stickMode: 2, assist: 'full', haptics: true, video: 'standard' },
     stats: { totalKills: 0, confirmedKills: 0, framesLost: 0, flightTimeSec: 0 },
   };
 }
 
 /** 구 스키마를 현재 버전으로 끌어올린다. 버전이 올라갈 때마다 단계를 추가한다. */
 function migrate(raw: PlayerProfile): PlayerProfile {
-  const profile = { ...defaultProfile(), ...raw };
+  const base = defaultProfile();
+  const profile = { ...base, ...raw };
+  // 중첩 객체는 스프레드가 통째로 덮는다 — 새 필드(video 등)는 안쪽에서 다시 채운다
+  profile.settings = { ...base.settings, ...raw.settings };
+  profile.stats = { ...base.stats, ...raw.stats };
   profile.schemaVersion = SCHEMA_VERSION;
   return profile;
 }

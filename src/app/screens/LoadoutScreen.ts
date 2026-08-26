@@ -45,6 +45,13 @@ export class LoadoutScreen implements Screen {
     const stickButtons = [1, 2]
       .map((m) => `<button class="lo-opt ${m === stick ? 'on' : ''}" data-stick="${m}">MODE ${m}</button>`)
       .join('');
+    const video = profile?.settings.video ?? 'standard';
+    const videoButtons = (['standard', 'analog'] as const)
+      .map(
+        (v) =>
+          `<button class="lo-opt ${v === video ? 'on' : ''}" data-video="${v}">${t(`video.${v}`)}</button>`,
+      )
+      .join('');
     const langButtons = LOCALES.map(
       (l) =>
         `<button class="lo-opt ${l === getLocale() ? 'on' : ''}" data-lang="${l}">${l.toUpperCase()}</button>`,
@@ -62,6 +69,7 @@ export class LoadoutScreen implements Screen {
       )}</div>` +
       `<div class="lo-row"><span class="lo-label">${t('loadout.assist')}</span>${assistButtons}</div>` +
       `<div class="lo-row"><span class="lo-label">${t('loadout.stick')}</span>${stickButtons}</div>` +
+      `<div class="lo-row"><span class="lo-label">${t('loadout.video')}</span>${videoButtons}</div>` +
       `<div class="lo-row"><span class="lo-label">${t('loadout.lang')}</span>${langButtons}</div>` +
       `<button class="db-btn lo-sortie">${t('loadout.sortie')}</button>` +
       `</div>`;
@@ -71,6 +79,9 @@ export class LoadoutScreen implements Screen {
     }
     for (const el of this.root.querySelectorAll<HTMLElement>('[data-stick]')) {
       el.addEventListener('click', () => this.setStick(Number(el.dataset.stick)));
+    }
+    for (const el of this.root.querySelectorAll<HTMLElement>('[data-video]')) {
+      el.addEventListener('click', () => this.setVideo(el.dataset.video as 'standard' | 'analog'));
     }
     for (const el of this.root.querySelectorAll<HTMLElement>('[data-lang]')) {
       el.addEventListener('click', () => this.setLang(el.dataset.lang as Locale));
@@ -92,6 +103,15 @@ export class LoadoutScreen implements Screen {
     const profile = this.ctx.state.profile;
     if (!profile) return;
     profile.settings.stickMode = mode;
+    save(profile);
+    this.render();
+  }
+
+  private setVideo(video: 'standard' | 'analog'): void {
+    const profile = this.ctx.state.profile;
+    if (!profile) return;
+    profile.settings.video = video;
+    this.ctx.renderer.setVideoQuality(video);
     save(profile);
     this.render();
   }

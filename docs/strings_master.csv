@@ -81,3 +81,6 @@ assist.semi,세미 (앵글),SEMI / ANGLE
 assist.acro,아크로 (레이트),ACRO / RATE
 debrief.sp,+{0} SP — 잔액 {1},+{0} SP — TOTAL {1}
 loadout.lang,언어,LANGUAGE
+loadout.video,화질,VIDEO
+video.standard,디지털 HD,DIGITAL HD
+video.analog,아날로그 480p,ANALOG 480P
