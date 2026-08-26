@@ -118,15 +118,37 @@ function buildGrass(
   return { grass, windUniform };
 }
 
+/**
+ * 울퉁불퉁 정이십면체 — 매끈한 기하 원형이 "로우폴리 에셋" 느낌의 마지막 잔재였다.
+ * 정점을 **위치 해시**로 방사형 변형한다: PolyhedronGeometry 는 면마다 정점이 복제돼 있어
+ * 인덱스로 밀면 면이 찢어진다 — 같은 위치는 같은 오프셋을 받아야 물샐틈없이 유지된다.
+ * 삼각형 수는 그대로(20)라 예산 비용이 0이다. salt 로 변종을 만든다.
+ */
+function lumpyIcosahedron(radius: number, salt: number, amount: number): THREE.BufferGeometry {
+  const geo = new THREE.IcosahedronGeometry(radius, 0);
+  const pos = geo.attributes.position;
+  const v = new THREE.Vector3();
+  for (let i = 0; i < pos.count; i++) {
+    v.set(pos.getX(i), pos.getY(i), pos.getZ(i));
+    const h = Math.sin(v.x * 12.9898 + v.y * 78.233 + v.z * 37.719 + salt) * 43758.5453;
+    const k = 1 - amount / 2 + (h - Math.floor(h)) * amount;
+    pos.setXYZ(i, v.x * k, v.y * k, v.z * k);
+  }
+  geo.computeVertexNormals();
+  return geo;
+}
+
 function buildBushes(scene: THREE.Scene, registry: ThermalRegistry): THREE.InstancedMesh {
-  const geo = new THREE.IcosahedronGeometry(1.6, 0);
   // MeshLambertMaterial 은 flatShading 을 지원하지 않는다 — 하네스가 경고 수백 회로 잡았던 자리.
-  const mat = new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 0, flatShading: true });
-  const bush = new THREE.InstancedMesh(geo, mat, 5200);
+  // 형태 변종 3종 — 5,200개가 전부 같은 형태면 색을 바꿔도 "복붙"으로 읽힌다. 삼각형 수는 동일.
+  const variants = [0, 1, 2].map((salt) => {
+    const mat = new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 0, flatShading: true });
+    return new THREE.InstancedMesh(lumpyIcosahedron(1.6, salt * 17.3, 0.55), mat, 1800);
+  });
+  const counts = [0, 0, 0];
 
   const dummy = new THREE.Object3D();
   const col = new THREE.Color();
-  let idx = 0;
   for (let i = 0; i < 5200; i++) {
     const x = rnd(-470, 470);
     const z = rnd(-470, 470);
@@ -143,17 +165,21 @@ function buildBushes(scene: THREE.Scene, registry: ThermalRegistry): THREE.Insta
     dummy.rotation.set(rnd(0, 3), rnd(0, 3), rnd(0, 3));
     dummy.scale.set(rnd(0.7, 2.1), rnd(0.5, 1.2), rnd(0.7, 2.1));
     dummy.updateMatrix();
-    bush.setMatrixAt(idx, dummy.matrix);
-    bush.setColorAt(idx, col);
-    idx++;
+    const vi = i % 3;
+    if (counts[vi] >= 1800) continue;
+    variants[vi].setMatrixAt(counts[vi], dummy.matrix);
+    variants[vi].setColorAt(counts[vi], col);
+    counts[vi]++;
   }
-  bush.count = idx;
-  bush.castShadow = true;
-  bush.receiveShadow = true;
-  scene.add(bush);
-
-  registry.registerAs(bush, 'bush');
-  return bush;
+  for (let vi = 0; vi < 3; vi++) {
+    const mesh = variants[vi];
+    mesh.count = counts[vi];
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    scene.add(mesh);
+    registry.registerAs(mesh, 'bush');
+  }
+  return variants[0];
 }
 
 function buildTrees(scene: THREE.Scene, registry: ThermalRegistry, ao: AoCollector): void {
@@ -233,10 +259,17 @@ function buildTrees(scene: THREE.Scene, registry: ThermalRegistry, ao: AoCollect
   const opts = { registry, scene };
   const white = () => new THREE.MeshLambertMaterial({ color: 0xffffff });
   buildInstanced(new THREE.CylinderGeometry(0.26, 0.62, 7, 6), white(), trunks, { heat: HEAT.trunk, ...opts });
+  // 수관도 형태 변종 2종 — 나무마다 블롭 4~6개가 서로 다른 변종을 섞어 쓴다
   buildInstanced(
-    new THREE.IcosahedronGeometry(1, 0),
+    lumpyIcosahedron(1, 5.7, 0.5),
     new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 0, flatShading: true }),
-    crowns,
+    crowns.filter((_, i) => i % 2 === 0),
+    { heat: HEAT.canopy, ...opts },
+  );
+  buildInstanced(
+    lumpyIcosahedron(1, 11.9, 0.5),
+    new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 0, flatShading: true }),
+    crowns.filter((_, i) => i % 2 === 1),
     { heat: HEAT.canopy, ...opts },
   );
   buildInstanced(new THREE.CylinderGeometry(0.16, 0.5, 8, 6), white(), dead, { heat: HEAT.deadwood, ...opts });

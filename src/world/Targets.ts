@@ -29,19 +29,53 @@ function hotParts(): MergePart[] {
     { geometry: BOX, matrix: place(0, 1.15, 3.35, 0, 0, 0, 2.6, 1.1, 2.0), color: [0.42, 0.4, 0.31] }, // 후드
     { geometry: BOX, matrix: place(0, 2.15, 2.05, 0, 0, 0, 2.8, 1.6, 1.7), color: [0.46, 0.44, 0.34] }, // 캡
     { geometry: BOX, matrix: place(0, 2.35, 2.9, 0, 0, 0, 2.45, 1.0, 0.14), color: [0.12, 0.16, 0.18] }, // 앞유리
+    // 캡 옆유리 — 옆에서 봤을 때 "차량"으로 읽히는 결정타
+    { geometry: BOX, matrix: place(1.41, 2.4, 2.05, 0, 0, 0, 0.06, 0.85, 1.2), color: [0.13, 0.17, 0.19] },
+    { geometry: BOX, matrix: place(-1.41, 2.4, 2.05, 0, 0, 0, 0.06, 0.85, 1.2), color: [0.13, 0.17, 0.19] },
     { geometry: CYL, matrix: place(1.25, 3.0, 1.5, 0, 0, 0, 0.13, 1.6, 0.13), color: [0.2, 0.19, 0.17] }, // 배기관
     { geometry: BOX, matrix: place(0, 0.95, 4.3, 0, 0, 0, 2.7, 0.5, 0.25), color: [0.24, 0.23, 0.2] }, // 범퍼
+    // 라디에이터 그릴 — 후드 앞면의 어두운 격자
+    { geometry: BOX, matrix: place(0, 1.35, 4.36, 0, 0, 0, 1.9, 0.62, 0.1), color: [0.12, 0.12, 0.11] },
+    // 전조등 2점 — 밝은 점 2개가 "차 얼굴"을 만든다
+    { geometry: BOX, matrix: place(0.95, 1.42, 4.4, 0, 0, 0, 0.34, 0.3, 0.08), color: [0.75, 0.74, 0.62] },
+    { geometry: BOX, matrix: place(-0.95, 1.42, 4.4, 0, 0, 0, 0.34, 0.3, 0.08), color: [0.75, 0.74, 0.62] },
+    // 펜더 — 앞바퀴 위 반원 덮개 격
+    { geometry: BOX, matrix: place(1.5, 1.5, 3.1, 0, 0, 0, 0.32, 0.24, 1.6), color: [0.34, 0.33, 0.26] },
+    { geometry: BOX, matrix: place(-1.5, 1.5, 3.1, 0, 0, 0, 0.32, 0.24, 1.6), color: [0.34, 0.33, 0.26] },
+    // 사이드미러
+    { geometry: BOX, matrix: place(1.55, 2.6, 2.95, 0, 0, 0, 0.08, 0.3, 0.2), color: [0.16, 0.16, 0.15] },
+    { geometry: BOX, matrix: place(-1.55, 2.6, 2.95, 0, 0, 0, 0.08, 0.3, 0.2), color: [0.16, 0.16, 0.15] },
+    // 연료탱크 — 사이드 실린더. 군용 트럭의 실루엣 특징
+    { geometry: CYL, matrix: place(1.35, 0.85, 0.6, 0, 0, Math.PI / 2, 0.34, 1.1, 0.34), color: [0.3, 0.29, 0.24] },
   ];
 }
 
 /** ② 적재함 — 중온 */
 function bodyParts(): MergePart[] {
-  return [
+  const parts: MergePart[] = [
     { geometry: BOX, matrix: place(0, 2.3, -1.6, 0, 0, 0, 2.9, 2.3, 7.2), color: [0.36, 0.35, 0.27] }, // 캔버스 덮개
     { geometry: BOX, matrix: place(0, 1.05, -1.6, 0, 0, 0, 3.0, 0.5, 7.4), color: [0.28, 0.27, 0.22] }, // 적재 바닥
     { geometry: BOX, matrix: place(0, 3.42, -1.6, 0, 0, 0, 2.5, 0.14, 7.0), color: [0.3, 0.29, 0.24] }, // 지붕 리브
     { geometry: BOX, matrix: place(0, 2.3, -5.15, 0, 0, 0, 2.85, 2.2, 0.14), color: [0.32, 0.31, 0.25] }, // 후면
   ];
+  // 캔버스 골조 리브 — 위장 덮개를 "천막"으로 읽게 하는 세로 골 4줄
+  for (const rz of [-4.2, -2.6, -1.0, 0.6]) {
+    parts.push({
+      geometry: BOX,
+      matrix: place(0, 2.35, rz, 0, 0, 0, 2.98, 2.2, 0.1),
+      color: [0.31, 0.3, 0.23],
+    });
+  }
+  // 적재함 하부 새시 — 바닥 밑 어두운 프레임. 차체가 "떠 있지 않게" 한다
+  parts.push({
+    geometry: BOX,
+    matrix: place(0, 0.7, -1.6, 0, 0, 0, 2.2, 0.28, 6.8),
+    color: [0.12, 0.12, 0.11],
+  });
+  // 뒷 머드플랩
+  parts.push({ geometry: BOX, matrix: place(1.3, 0.45, -4.9, 0, 0, 0, 0.5, 0.5, 0.06), color: [0.1, 0.1, 0.1] });
+  parts.push({ geometry: BOX, matrix: place(-1.3, 0.45, -4.9, 0, 0, 0, 0.5, 0.5, 0.06), color: [0.1, 0.1, 0.1] });
+  return parts;
 }
 
 /** ③ 바퀴 — 저온 */

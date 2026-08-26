@@ -37,6 +37,31 @@ export function groundTex(sz: number): THREE.CanvasTexture {
       let r = DRY[0] * (1 - t) + GRN[0] * t;
       let g = DRY[1] * (1 - t) + GRN[1] * t;
       let b = DRY[2] * (1 - t) + GRN[2] * t;
+      /**
+       * 경작지 패치워크 — 항공에서 이 땅을 "농지"로 읽게 하는 것은 필지 경계다.
+       * 저주파 노이즈를 계단화해 필지마다 명도를 살짝 다르게, 경계에는 어두운 골(농로/도랑).
+       */
+      const field = fbm(i * 0.006 + 77, j * 0.006 + 77, 2);
+      const cell = Math.floor(field * 7);
+      const fieldTone = 0.9 + (hash2(cell * 13.7, cell * 7.1) - 0.5) * 0.22;
+      r *= fieldTone;
+      g *= fieldTone;
+      b *= fieldTone;
+      const boundary = Math.abs(field * 7 - cell - 0.5);
+      if (boundary > 0.46) {
+        r *= 0.72;
+        g *= 0.72;
+        b *= 0.7;
+      }
+      // 쟁기 이랑 — 일부 필지에만, 한 방향 줄무늬. 있는 밭과 없는 밭이 섞여야 산다
+      if (hash2(cell * 3.3, 9.1) > 0.5) {
+        const rowDir = hash2(cell * 5.9, 1.7) > 0.5 ? i + j * 0.35 : j - i * 0.28;
+        const row = Math.sin(rowDir * 0.55) * 0.5 + 0.5;
+        const amp = 1 + (row - 0.5) * 0.12;
+        r *= amp;
+        g *= amp;
+        b *= amp;
+      }
       const hi = (det - 0.5) * 0.55 + (fine - 0.5) * 0.42; // 밝기 요동
       r *= 1 + hi;
       g *= 1 + hi * 1.05;
@@ -55,7 +80,11 @@ export function groundTex(sz: number): THREE.CanvasTexture {
   return tx;
 }
 
-/** 아스팔트 — 갈라짐 + 가장자리 침식 */
+/**
+ * 아스팔트 — 낡은 2차선의 문법을 픽셀 단계에서 전부 넣는다:
+ * 타이어 마모대(차로당 2줄) · 바랜 중앙 점선 · 보수 패치 · 크랙 망 · 포트홀 · 가장자리 침식.
+ * 480p 에서 도로를 "도로"로 읽게 하는 것은 지오메트리가 아니라 이 명암 패턴이다.
+ */
 export function roadTex(sz: number): THREE.CanvasTexture {
   const { c, x } = canvas(sz, sz);
   const img = x.createImageData(sz, sz);
@@ -65,13 +94,42 @@ export function roadTex(sz: number): THREE.CanvasTexture {
       const k = (j * sz + i) * 4;
       const n = hash2(i * 1.7, j * 1.3);
       const f = fbm(i * 0.05, j * 0.05, 3);
-      let v = 118 + (f - 0.5) * 46 + (n - 0.5) * 26;
+      const u = i / sz; // 0(좌측 갓길) ~ 1(우측 갓길)
+      let v = 116 + (f - 0.5) * 40 + (n - 0.5) * 24;
+
+      // 타이어 마모대 — 아스팔트에서 가장 먼저 생기는 무늬. 차로당 2줄, 완만한 골.
+      for (const lane of [0.3, 0.7]) {
+        for (const off of [-0.085, 0.085]) {
+          const t = Math.abs(u - (lane + off)) / 0.05;
+          if (t < 1) v -= (1 - t * t) * 16;
+        }
+      }
+      // 보수 패치 — 진하고 매끈한 직사각 구획 (저주파 노이즈로 자리를 정한다)
+      const patch = fbm(i * 0.02 + 40, j * 0.008 + 40, 2);
+      if (patch > 0.62) v = v * 0.55 + 26;
+      // 크랙 망 — fbm 등고선의 능선만 얇게 어둡힌다
+      const crack = fbm(i * 0.11, j * 0.09, 4);
+      if (Math.abs(crack - 0.5) < 0.012) v -= 34;
+      // 포트홀 — 아주 드문 검은 점
+      if (hash2(i * 0.31, j * 0.27) > 0.9965) v -= 60;
+
       const edge = Math.min(i, sz - 1 - i) / (sz * 0.5);
       if (edge < 0.13) v -= (0.13 - edge) * 250; // 가장자리 흙 침식
-      if (n > 0.988) v += 42;
-      d[k] = v * 1.02;
-      d[k + 1] = v;
-      d[k + 2] = v * 0.96;
+      if (n > 0.988) v += 42; // 자갈 반짝임
+
+      let r = v * 1.02;
+      let g = v;
+      let b = v * 0.96;
+      // 바랜 중앙 점선 — 세로(j) 12px 주기 중 7px 만 칠하고, 닳아서 끊긴다
+      if (Math.abs(u - 0.5) < 0.014 && j % 12 < 7 && hash2(j * 0.7, 3.1) > 0.3) {
+        const paint = 150 + (n - 0.5) * 40;
+        r = Math.max(r, paint);
+        g = Math.max(g, paint * 0.97);
+        b = Math.max(b, paint * 0.82);
+      }
+      d[k] = r;
+      d[k + 1] = g;
+      d[k + 2] = b;
       d[k + 3] = 255;
     }
   x.putImageData(img, 0, 0);
@@ -191,25 +249,65 @@ export function wallTex(rows: number, cols: number): THREE.CanvasTexture {
     x.fillStyle = 'rgba(90,84,70,0.10)';
     x.fillRect(Math.random() * sz, sz * 0.55 + Math.random() * sz * 0.45, 1 + Math.random() * 3, 10 + Math.random() * 30);
   }
+  // 기초띠 — 벽 아래 어두운 콘크리트 굽. 건물이 땅에 "박혀" 보이게 하는 한 줄이다.
+  x.fillStyle = 'rgba(70,66,58,0.85)';
+  x.fillRect(0, sz - 7, sz, 7);
+  x.fillStyle = 'rgba(58,54,48,0.5)';
+  x.fillRect(0, sz - 9, sz, 2);
+  // 처마 그늘 — 위쪽 어두운 띠. 지붕이 벽에 그림자를 떨군다.
+  const eave = x.createLinearGradient(0, 0, 0, 9);
+  eave.addColorStop(0, 'rgba(30,28,24,0.55)');
+  eave.addColorStop(1, 'rgba(30,28,24,0)');
+  x.fillStyle = eave;
+  x.fillRect(0, 0, sz, 9);
+
   const mw = sz / (cols + 1);
   const mh = sz / (rows + 1);
+  // 문 — 창 하나 자리를 문으로 바꾼다 (기초띠까지 내려온다)
+  const doorCol = (Math.random() * cols) | 0;
   for (let r = 0; r < rows; r++)
     for (let cc = 0; cc < cols; cc++) {
       const wx = mw * (cc + 0.62);
+      const isDoor = r === rows - 1 && cc === doorCol;
+      if (isDoor) {
+        const dw = mw * 0.5;
+        const dh = mh * 1.1;
+        const dy = sz - 7 - dh;
+        x.fillStyle = '#2e2a22';
+        x.fillRect(wx, dy, dw, dh);
+        x.strokeStyle = '#57503f';
+        x.lineWidth = 1.4;
+        x.strokeRect(wx, dy, dw, dh);
+        // 문 위 인방
+        x.fillStyle = 'rgba(120,112,96,0.9)';
+        x.fillRect(wx - 1.5, dy - 2.5, dw + 3, 2.5);
+        continue;
+      }
       const wy = mh * (r + 0.55);
       const ww = mw * 0.62;
       const wh = mh * 0.66;
-      x.fillStyle = '#20262a';
+      // 창 개구부 — 위쪽에 하늘 반사, 아래로 갈수록 검다
+      const glass = x.createLinearGradient(0, wy, 0, wy + wh);
+      glass.addColorStop(0, '#4a565c');
+      glass.addColorStop(0.45, '#232a2e');
+      glass.addColorStop(1, '#181d20');
+      x.fillStyle = glass;
       x.fillRect(wx, wy, ww, wh);
-      x.fillStyle = 'rgba(150,175,190,0.28)';
-      x.fillRect(wx, wy, ww, wh * 0.42);
-      x.strokeStyle = '#d8d2c4';
+      x.strokeStyle = '#cfc9ba';
       x.lineWidth = 1.6;
       x.strokeRect(wx, wy, ww, wh);
       x.beginPath();
       x.moveTo(wx + ww / 2, wy);
       x.lineTo(wx + ww / 2, wy + wh);
       x.stroke();
+      // 창턱 — 아래로 살짝 넓은 밝은 돌출 + 그 밑 때 얼룩
+      x.fillStyle = 'rgba(205,198,182,0.95)';
+      x.fillRect(wx - 1.5, wy + wh, ww + 3, 2);
+      x.fillStyle = 'rgba(80,74,62,0.25)';
+      x.fillRect(wx - 1, wy + wh + 2, ww + 2, 5);
+      // 인방 — 창 위 가로 부재
+      x.fillStyle = 'rgba(150,142,124,0.8)';
+      x.fillRect(wx - 1.5, wy - 2.2, ww + 3, 2.2);
     }
   const t = new THREE.CanvasTexture(c);
   t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
@@ -225,14 +323,29 @@ export function roofTex(metal: boolean): THREE.CanvasTexture {
       let r: number, g: number, b: number;
       if (metal) {
         const rib = Math.sin(i * 0.9) * 0.5 + 0.5;
-        const v = 96 + rib * 54 + (Math.random() - 0.5) * 16;
+        let v = 96 + rib * 54 + (Math.random() - 0.5) * 16;
+        // 판 이음매 — 16px 마다 어두운 골. 함석 지붕은 "판"으로 읽혀야 한다
+        if (i % 16 < 1.5) v -= 30;
         r = v * 0.92;
         g = v * 0.95;
         b = v * 0.9;
+        // 녹 얼룩 — 이음매·아래쪽에서 번진다
+        const rust = hash2(i * 0.9, j * 0.7);
+        if (rust > 0.86 && (i % 16 < 3 || j > sz * 0.6)) {
+          const k2 = (rust - 0.86) * 6;
+          r = r * (1 - k2) + 122 * k2;
+          g = g * (1 - k2) + 74 * k2;
+          b = b * (1 - k2) + 48 * k2;
+        }
       } else {
         const row = Math.floor(j / 8) % 2;
         const tile = (i + row * 4) % 8;
-        const v = (tile < 1 ? 0.72 : 1) * (120 + (Math.random() - 0.5) * 22);
+        // 기와 한 장 안에서도 아래로 갈수록 어둡다 — 겹침 그늘
+        const inRow = (j % 8) / 8;
+        let v = (tile < 1 ? 0.66 : 1) * (118 + (Math.random() - 0.5) * 22) * (1.06 - inRow * 0.18);
+        // 장마다 미묘한 색 편차 — 갈아 끼운 기와
+        const tileId = Math.floor(i / 8) * 31 + Math.floor(j / 8) * 17;
+        v *= 0.92 + hash2(tileId, 3.7) * 0.16;
         r = v * 1.32;
         g = v * 0.72;
         b = v * 0.56;

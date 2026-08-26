@@ -136,6 +136,58 @@ function buildHouses(
   const chimneys: InstanceSpec[] = [];
   const rubble: InstanceSpec[] = [];
 
+  const fencePosts: InstanceSpec[] = [];
+  const fenceRails: InstanceSpec[] = [];
+
+  /**
+   * 마당 울타리 — 항공 사진에서 농가를 "농가"로 읽게 하는 것은 집이 아니라 **경계**다.
+   * 낡은 울타리라 군데군데 이가 빠져 있다(스킵 확률) — 완전한 사각형은 오히려 가짜 같다.
+   */
+  const makeYardFence = (px: number, pz: number, w: number, d: number): void => {
+    const hw = w / 2 + rnd(3.5, 6);
+    const hd = d / 2 + rnd(3.5, 6);
+    const sides: [number, number, number, number][] = [
+      [px - hw, pz - hd, px + hw, pz - hd],
+      [px + hw, pz - hd, px + hw, pz + hd],
+      [px + hw, pz + hd, px - hw, pz + hd],
+      [px - hw, pz + hd, px - hw, pz - hd],
+    ];
+    for (const [x0, z0, x1, z1] of sides) {
+      const len = Math.hypot(x1 - x0, z1 - z0);
+      const n = Math.max(2, Math.round(len / 2.4));
+      const ang = Math.atan2(x1 - x0, z1 - z0);
+      let prev: [number, number, number] | null = null;
+      for (let i = 0; i <= n; i++) {
+        const t = i / n;
+        const fx = x0 + (x1 - x0) * t;
+        const fz = z0 + (z1 - z0) * t;
+        const fy = terrainH(fx, fz);
+        if (random() < 0.12) {
+          prev = null; // 이 빠진 구간 — 가로대도 함께 끊는다
+          continue;
+        }
+        fencePosts.push({
+          p: [fx, fy + 0.55, fz],
+          r: [rnd(-0.05, 0.05), 0, rnd(-0.05, 0.05)],
+          s: [1, rnd(0.9, 1.1), 1],
+          c: 0x5c5244,
+        });
+        if (prev) {
+          const mx = (fx + prev[0]) / 2;
+          const mz = (fz + prev[2]) / 2;
+          const seg = Math.hypot(fx - prev[0], fz - prev[2]);
+          fenceRails.push({
+            p: [mx, (fy + prev[1]) / 2 + 0.82, mz],
+            r: [0, ang, 0],
+            s: [1, 1, seg / 2.4],
+            c: 0x655a4a,
+          });
+        }
+        prev = [fx, fy, fz];
+      }
+    }
+  };
+
   /** kind: 0 농가 / 1 창고 / 2 폐가 */
   const makeHouse = (px: number, pz: number, kind: 0 | 1 | 2): void => {
     const y = terrainH(px, pz);
@@ -157,17 +209,20 @@ function buildHouses(
     ao.add(px, pz, Math.max(w, d) * 0.85);
 
     if (kind !== 2) {
-      // 박공지붕 = 삼각기둥(원기둥 3분할)을 눕힌 것
-      const rw = Math.hypot(w / 2, w * 0.34);
+      // 박공지붕 = 삼각기둥(원기둥 3분할)을 눕힌 것.
+      // 물매 0.34→0.26, 눌림 0.66→0.56 — 벽 대비 지붕이 과하게 크던 것 수정(점검 스윕).
+      // 처마는 벽보다 6% 넓게 내밀어 벽 텍스처의 처마 그늘과 이어진다.
+      const rw = Math.hypot(w / 2, w * 0.26) * 1.06;
       const roof = registry.register(
-        new THREE.Mesh(new THREE.CylinderGeometry(rw, rw, d * 1.06, 3), ROOF[kind === 1 ? 1 : 0]),
+        new THREE.Mesh(new THREE.CylinderGeometry(rw, rw, d * 1.08, 3), ROOF[kind === 1 ? 1 : 0]),
         kind === 1 ? HEAT.roofMetal : HEAT.roof,
       );
       roof.rotation.x = -Math.PI / 2;
-      roof.scale.set(1, 1, 0.66);
-      roof.position.set(px, y + h + w * 0.16, pz);
+      roof.scale.set(1, 1, 0.56);
+      roof.position.set(px, y + h + w * 0.115, pz);
       roof.castShadow = true;
       scene.add(roof);
+      if (kind === 0 && random() < 0.6) makeYardFence(px, pz, w, d);
       if (kind === 0 && random() < 0.7) {
         chimneys.push({
           p: [px + rnd(-w * 0.25, w * 0.25), y + h + 1.6, pz + rnd(-d * 0.2, d * 0.2)],
@@ -207,6 +262,16 @@ function buildHouses(
   });
   buildInstanced(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshLambertMaterial({ color: 0xffffff }), rubble, {
     heat: HEAT.rubble,
+    ...opts,
+  });
+  // 울타리 — 기둥은 그림자를 끄지 않고, 가로대는 끈다(1024 섀도우맵에서 얇은 가로대는 지글거린다)
+  buildInstanced(new THREE.BoxGeometry(0.14, 1.1, 0.14), new THREE.MeshLambertMaterial({ color: 0xffffff }), fencePosts, {
+    heat: HEAT.trunk,
+    ...opts,
+  });
+  buildInstanced(new THREE.BoxGeometry(0.07, 0.09, 2.4), new THREE.MeshLambertMaterial({ color: 0xffffff }), fenceRails, {
+    heat: HEAT.trunk,
+    shadow: false,
     ...opts,
   });
 }
