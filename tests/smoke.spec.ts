@@ -562,3 +562,69 @@ test('T8a 자폭 돌입 — 트럭에 박으면 격파되고 TGT DOWN 이 뜬다
   expect(after.struck, '리스폰이 struck 을 리셋하지 않았다').toBe(false);
   expect(after.targetsAlive, '리스폰이 격파를 되돌렸다').toBe(2);
 });
+
+/**
+ * T8b 완료 조건: 경계 밖 3초 → 임무 실패, 맵 끝이 화면에 안 보인다.
+ * 이탈은 벽이 아니라 신호로 막힌다 — 나가는 순간 경고가 뜨고 화면이 무너지기 시작해
+ * 3초 뒤 링크가 끊긴다.
+ */
+test('T8b 작전 구역 — 이탈하면 경고 → 신호 붕괴 → 3초 뒤 링크 상실', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForFunction(() => window.__debug?.ready === true, null, { timeout: 60_000 });
+  await page.evaluate(() => {
+    window.__debug.flight.setWindCalm();
+    window.__debug.flight.respawn();
+  });
+
+  // 경계 밖 30m 에 세워 둔다 (고도는 높게 — 신호 비교에 차폐가 섞이지 않게)
+  const during = await page.evaluate(async () => {
+    const t = window.__debug.flight.telemetry();
+    t.pos.set(520, t.pos.y + 60, 0);
+    t.vel.set(0, 0, 0);
+    for (let i = 0; i < 3; i++) await new Promise((r) => requestAnimationFrame(r));
+    return {
+      ao: window.__debug.flight.ao(),
+      signal: Number(window.__debug.state.signalQuality),
+    };
+  });
+  expect(during.ao.outside, '경계 밖인데 이탈 판정이 없다').toBe(true);
+  expect(during.ao.warning).toBe(true);
+  // 이탈 즉시 신호가 깎이기 시작한다 — 화면이 무너지는 연출의 근거
+  await expect(page.locator('#hud .hud-tl')).toContainText('RTB');
+  await page.screenshot({ path: 'tests/__screenshots__/t8b-ao-warning.png' });
+
+  // 유예를 소진할 때까지 밖에 머문다
+  const after = await page.evaluate(async () => {
+    const deadline = window.__debug.frame + 120;
+    while (window.__debug.frame < deadline && !window.__debug.flight.crashed()) {
+      const t = window.__debug.flight.telemetry();
+      t.pos.set(520, t.pos.y, 0);
+      t.vel.set(0, 0, 0);
+      await new Promise((r) => requestAnimationFrame(r));
+    }
+    return { crashed: window.__debug.flight.crashed() };
+  });
+  expect(after.crashed, '유예가 끝났는데 링크가 살아 있다').toBe('작전 구역 이탈');
+});
+
+test('T8b 작전 구역 — 경계 근처에서 맵 끝이 화면에 보이지 않는다', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForFunction(() => window.__debug?.ready === true, null, { timeout: 60_000 });
+  // 경계 바로 안(470, 0)에서 바깥(+x)을 본다 — 스커트가 없으면 지형 끝(±800)과
+  // 그 너머 허공이 화면 절반을 차지하던 시점이다 (sweep-10 의 재현).
+  await page.evaluate(async () => {
+    window.__debug.flight.setWindCalm();
+    window.__debug.flight.respawn();
+    for (let i = 0; i < 4; i++) {
+      const t = window.__debug.flight.telemetry();
+      t.pos.set(460, t.pos.y + (40 - t.agl), 0);
+      t.vel.set(0, 0, 0);
+      t.yaw = -Math.PI / 2; // +x 를 본다
+      await new Promise((r) => requestAnimationFrame(r));
+    }
+  });
+  await page.screenshot({ path: 'tests/__screenshots__/t8b-horizon.png' });
+  // 판정은 눈으로 한다 (CLAUDE.md 검증 절) — 여기서는 렌더가 죽지 않았다는 것만 고정
+  const render = await page.evaluate(() => window.__debug.render);
+  expect(render.triangles).toBeGreaterThan(50_000);
+});

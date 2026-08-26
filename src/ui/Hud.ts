@@ -27,6 +27,8 @@ export interface HudState {
   linkDown: boolean;
   /** 자폭 돌입 성립 — 링크 상실이 실패가 아니라 임무 완수라는 표시 */
   struck: boolean;
+  /** 작전 구역 경고. 밖이면 카운트다운, 안이면 경계까지 거리 */
+  ao: { outside: boolean; secondsLeft: number; distance: number } | null;
   elapsedSec: number;
   build: string;
 }
@@ -137,11 +139,19 @@ export class Hud {
       ? `<br><span class="${threatClass}">${s.threat.token} ${s.threat.distance.toFixed(0)}M</span>`
       : '';
 
+    // 작전 구역 — 이탈 중엔 적색 카운트다운(지금 가장 급한 숫자), 접근 중엔 황색 거리
+    const ao = s.ao
+      ? `<br><span class="${
+          s.ao.outside ? (Math.floor(performance.now() / 250) % 2 ? 'red' : 'dim') : 'amb'
+        }">${s.ao.outside ? `RTB ${s.ao.secondsLeft}` : `AO ${s.ao.distance.toFixed(0)}M`}</span>`
+      : '';
+
     this.cells.status.innerHTML =
       `<span class="wht">${status}</span><br>` +
       `<span class="wht">AIR</span><br>` +
       `<span class="${battClass}">${volts}V</span>` +
-      threat;
+      threat +
+      ao;
 
     // 신호 막대 — 라벨 없이 기호만 (06 문서 원칙 ⑤)
     const bars = '▂▄▆█'.slice(0, Math.round(s.signal * 4)) || '·';

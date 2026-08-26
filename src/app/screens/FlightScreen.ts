@@ -16,6 +16,7 @@ import { ThreatRunner, type ThreatFrame } from '@/mission/threats/ThreatRunner';
 import { buildDemoThreats } from '@/mission/DemoThreats';
 import { destroyTarget, updateTargets } from '@/world/Targets';
 import { findImpact } from '@/mission/Strike';
+import { AoLimit, type AoState } from '@/mission/AoLimit';
 import { CAM_MODE_LABEL, THERMAL_UNIFORM, applyCameraMode, nextCamMode } from '@/world/CameraMode';
 import { PadOverlay } from '@/ui/PadOverlay';
 import type { InputFrame } from '@/input/InputSource';
@@ -48,6 +49,8 @@ export class FlightScreen implements Screen {
   private threatFrame: ThreatFrame = { jam: 0, kill: null, warning: null, warnings: [] };
   /** 이번 출격에서 자폭 돌입이 성립했는가 — HUD 가 NO LINK 대신 TGT DOWN 을 띄운다 */
   private struck = false;
+  private readonly ao = new AoLimit();
+  private aoState: AoState = { outside: false, progress: 0, secondsLeft: 3, distanceToEdge: 1e9, warning: false };
 
   private models!: Record<'arcade' | 'pro', FlightModel>;
   private flight!: FlightModel;
@@ -137,6 +140,12 @@ export class FlightScreen implements Screen {
     // 돔 경계에서 화면이 한 프레임 늦게 무너지지 않는다.
     if (!this.crashReason) this.updateThreats(dt, t.agl, t.spd);
 
+    // 작전 구역 — 이탈하면 벽이 아니라 신호가 막는다 (T8b). 3초에 걸쳐 링크가 무너진다.
+    if (!this.crashReason) {
+      this.aoState = this.ao.update(t.pos.x, t.pos.z, dt);
+      if (this.ao.expired) this.crash('작전 구역 이탈');
+    }
+
     // 자폭 돌입 — 무장이 아니라 기체가 탄이다 (T8a). 판정 수식은 프로토타입 그대로.
     if (!this.crashReason) {
       const impact = findImpact(t.pos, this.world.targets, this.flight.mode);
@@ -163,7 +172,8 @@ export class FlightScreen implements Screen {
       {
         distance: Math.hypot(t.pos.x, t.pos.z),
         losBlocked: this.los.blocked,
-        jam: this.threatFrame.jam,
+        // 이탈 진행이 재밍처럼 신호를 깎는다 — 화면이 점점 무너지다 끊기는 연출의 근거
+        jam: Math.max(this.threatFrame.jam, this.aoState.outside ? 0.35 + this.aoState.progress * 0.65 : 0),
         falloff: POSTFX.falloff,
       },
       dt,
@@ -207,6 +217,13 @@ export class FlightScreen implements Screen {
       losBlocked: this.los.blocked > 0.5,
       linkDown: this.crashReason !== null,
       struck: this.struck,
+      ao: this.aoState.warning
+        ? {
+            outside: this.aoState.outside,
+            secondsLeft: this.aoState.secondsLeft,
+            distance: Math.max(0, this.aoState.distanceToEdge),
+          }
+        : null,
       elapsedSec: this.elapsed,
       build: `${__BUILD_BRANCH__} ${__BUILD_ID__}`,
     });
@@ -292,6 +309,8 @@ export class FlightScreen implements Screen {
     this.los.reset();
     this.threats.reset();
     this.threatFrame = { jam: 0, kill: null, warning: null, warnings: [] };
+    this.ao.reset();
+    this.aoState = { outside: false, progress: 0, secondsLeft: 3, distanceToEdge: 1e9, warning: false };
     for (const m of Object.values(this.models)) m.reset(this.spawnPoint, Math.PI);
     this.ctx.bus.emit('flight:spawned');
   }
@@ -347,6 +366,10 @@ export class FlightScreen implements Screen {
       jam: this.threatFrame.jam,
       violations: this.threats.violations,
     };
+  }
+  /** 테스트·디버그 — 작전 구역 상태 */
+  get aoLimitState(): AoState {
+    return this.aoState;
   }
   /** 테스트·디버그 — 자폭 결과 */
   get strikeState(): { struck: boolean; targetsAlive: number } {

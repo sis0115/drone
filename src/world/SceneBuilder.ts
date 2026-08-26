@@ -56,6 +56,7 @@ export function buildWorld(options: { seed?: number } = {}): World {
   const sun = addSun(scene);
 
   const terrain = buildTerrain(scene, registry);
+  addHorizonSkirt(scene, registry);
 
   // AO 패치는 나무·건물이 각자 쌓아 두고 **마지막에 한 번** 1콜로 굽는다.
   const ao = new AoCollector();
@@ -81,6 +82,26 @@ export function buildWorld(options: { seed?: number } = {}): World {
     obstacles: props.obstacles,
     heightAt: terrainH,
   };
+}
+
+/**
+ * 지평선 스커트 — 지형(±800m) 밖을 단색 지면으로 지평선까지 잇는다.
+ *
+ * 점검 스윕에서 맵 가장자리 근처를 날면 **지형이 끊긴 자리가 그대로 보였다**
+ * (sweep-10). 안개(far 540m)는 점진 감쇠라 300m 대부터 끝 라인이 비친다.
+ * 디테일 없는 큰 원판 하나(+1콜)면 지면이 안개 속으로 무한히 이어진다.
+ * 살짝 낮게(-1.2m) 깔아 실제 지형과 z-파이팅하지 않는다.
+ */
+function addHorizonSkirt(scene: THREE.Scene, registry: ThermalRegistry): void {
+  const skirt = new THREE.Mesh(
+    new THREE.CircleGeometry(3000, 24),
+    // 지면 팔레트의 중간값 — 안개에 녹아들며 실제 지형과 이어져 보인다
+    new THREE.MeshLambertMaterial({ color: 0x8d8668 }),
+  );
+  skirt.rotation.x = -Math.PI / 2;
+  skirt.position.y = -1.2;
+  scene.add(skirt);
+  registry.register(skirt, 0.6);
 }
 
 /**

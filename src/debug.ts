@@ -42,6 +42,8 @@ export interface FlightDebugApi {
   setBattery(percent: number): void;
   /** 자폭 결과 — 성립 여부와 생존 표적 수 */
   strike(): { struck: boolean; targetsAlive: number };
+  /** 작전 구역 상태 */
+  ao(): { outside: boolean; progress: number; secondsLeft: number; distanceToEdge: number; warning: boolean };
   crashed(): string | null;
   respawn(): void;
   camMode(): string;
@@ -115,6 +117,7 @@ export function installDebug(app: App, flight: FlightScreen): DebugApi {
       respawn: () => flight.spawn(),
       setBattery: (p) => flight.setBattery(p),
       strike: () => flight.strikeState,
+      ao: () => flight.aoLimitState,
       camMode: () => state.camMode,
       threats: () => flight.threatState,
       setCamMode: (m) => flight.setCamMode(m),
