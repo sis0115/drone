@@ -450,6 +450,14 @@ export class FlightScreen implements Screen {
   get aoLimitState(): AoState {
     return this.aoState;
   }
+  /** 테스트·디버그 — 표적 좌표 (자동조종 플레이스루용) */
+  get targetPositions(): { x: number; z: number; alive: boolean }[] {
+    return this.world.targets.map((t) => ({
+      x: t.group.position.x,
+      z: t.group.position.z,
+      alive: t.alive,
+    }));
+  }
   /** 테스트·디버그 — 자폭 결과 */
   get strikeState(): { struck: boolean; targetsAlive: number } {
     return { struck: this.struck, targetsAlive: this.world.targets.filter((x) => x.alive).length };

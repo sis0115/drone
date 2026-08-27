@@ -327,16 +327,18 @@ test('T6 카메라 모드 — BW → COLOR → THRM 순환과 스크린샷 3장'
  * 그 계약이 **실제 화면까지 배선되어 있는지**를 본다.
  */
 test('T7 위협 — 조준 예고가 화면에 먼저 뜨고, 그 뒤에 격추된다', async ({ page }) => {
+  // 스크린샷 + 조준 1.6초 재측정 사슬 — 전체 verify 의 느려진 컨테이너에서 120초를 넘긴다
+  test.setTimeout(300_000);
   await enterFlight(page);
   await page.evaluate(() => {
     window.__debug.flight.setWindCalm();
     window.__debug.flight.respawn();
   });
 
-  // A1 은 (104, -150). 위험 반경(50m) 밖 · 탐지 반경(95m) 안에 먼저 선다.
+  // A1 은 (76, -132). 위험 반경(50m) 밖 · 탐지 반경(110m) 안에 먼저 선다.
   await page.evaluate(async () => {
     const t = window.__debug.flight.telemetry();
-    t.pos.set(104, t.pos.y, -80);
+    t.pos.set(76, t.pos.y, -50);
     t.vel.set(0, 0, 0);
     t.yaw = 0;
     const n = window.__debug.frame + 3;
@@ -353,7 +355,7 @@ test('T7 위협 — 조준 예고가 화면에 먼저 뜨고, 그 뒤에 격추�
   await page.evaluate(async () => {
     for (let i = 0; i < 3; i++) {
       const t = window.__debug.flight.telemetry();
-      t.pos.set(104, t.pos.y + (14 - t.agl), -128);
+      t.pos.set(76, t.pos.y + (14 - t.agl), -112);
       t.vel.set(0, 0, 0);
       await new Promise((r) => requestAnimationFrame(r));
     }
@@ -377,7 +379,7 @@ test('T7 위협 — 조준 예고가 화면에 먼저 뜨고, 그 뒤에 격추�
     const deadline = window.__debug.frame + 300;
     while (window.__debug.frame < deadline && !window.__debug.flight.crashed()) {
       const t = window.__debug.flight.telemetry();
-      t.pos.set(104, t.pos.y + (14 - t.agl), -128); // 반경 안 · 노출 고도 유지
+      t.pos.set(76, t.pos.y + (14 - t.agl), -112); // 반경 안 · 노출 고도 유지
       t.vel.set(0, 0, 0);
       await new Promise((r) => requestAnimationFrame(r));
       const w = window.__debug.flight.threats().warnings.find((x) => x.id === 'A1');
@@ -638,6 +640,8 @@ test('T8b 작전 구역 — 경계 근처에서 맵 끝이 화면에 보이지 �
  * 재출격 → 링크 재수립 → 새 출격(월드 리셋).
  */
 test('T8c 미션 루프 — 격파하면 디브리핑이 뜨고, 재출격하면 처음부터다', async ({ page }) => {
+  // 격파 궤적 + 디브리핑 + 재출격(작전실→브리핑→링크→월드 재생성) 한 사슬 — 120초로는 모자란다
+  test.setTimeout(300_000);
   await enterFlight(page);
   await page.evaluate(() => {
     window.__debug.flight.setWindCalm();
@@ -687,12 +691,12 @@ test('T8c 미션 루프 — 위협에 격추되면 원인 1줄과 권고가 나�
     window.__debug.flight.respawn();
   });
 
-  // A1(104,-150) 사선에 노출 고도로 머문다 — 조준 0.9초 뒤 격추된다
+  // A1(76,-132) 사선에 노출 고도로 머문다 — 조준 1.6초 뒤 격추된다
   await page.evaluate(async () => {
     const deadline = window.__debug.frame + 300;
     while (window.__debug.frame < deadline && !window.__debug.flight.crashed()) {
       const t = window.__debug.flight.telemetry();
-      t.pos.set(104, t.pos.y + (14 - t.agl), -128);
+      t.pos.set(76, t.pos.y + (14 - t.agl), -112);
       t.vel.set(0, 0, 0);
       await new Promise((r) => requestAnimationFrame(r));
     }

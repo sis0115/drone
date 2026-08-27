@@ -29,7 +29,10 @@ export default defineConfig({
    * 점검용 스크린샷 스윕(`npm run shots`)은 기본 실행에서 뺀다.
    * 이 컨테이너는 ~1fps 라 스윕 한 번이 수 분이고, 검증이 아니라 **눈으로 볼 자료**를 만드는 일이다.
    */
-  testIgnore: process.env.SHOTS ? [] : ['**/shots.spec.ts'],
+  testIgnore:
+    process.env.SHOTS || process.env.PLAY
+      ? []
+      : ['**/shots.spec.ts', '**/playthrough.spec.ts'],
   // T2 이후 씬이 무거워졌다. 이 컨테이너는 소프트웨어 렌더(SwiftShader)라
   // 한 프레임에 1초 이상 걸려 30초로는 부트조차 못 끝낸다. 실기 성능과 무관한 값이다.
   timeout: 120_000,
