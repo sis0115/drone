@@ -1,5 +1,5 @@
 import type { MissionDef } from '@/data/missions';
-import { SP_VALUE, TIER_MULTIPLIER } from '@/data/economy';
+import { CONFIRM_MULTIPLIER, FIRST_CLEAR_BONUS, SP_VALUE, TIER_MULTIPLIER } from '@/data/economy';
 import type { CrashReason } from '@/drone/FlightModel';
 import type { DebriefData, ThreatCauseDetail } from '@/core/GameState';
 
@@ -43,21 +43,33 @@ export class MissionRunner {
   /**
    * 출격 종료. 자폭 드론이라 모든 출격은 기체 손실로 끝난다 —
    * 성공이란 "죽기 전에 목표를 채웠는가"다.
+   *
+   * `alreadyCleared` 는 **호출자(프로필을 아는 쪽)** 가 알려 준다 — 러너가 세이브를
+   * 직접 읽으면 미션 로직이 저장 스키마에 묶인다. 최초 완수에만 보너스가 붙는다.
    */
-  finish(reason: CrashReason, flightSec: number): DebriefData {
+  finish(reason: CrashReason, flightSec: number, alreadyCleared = false): DebriefData {
+    const cleared = this.kills >= this.def.destroyGoal;
+    const firstClear = cleared && !alreadyCleared;
     // SP 정산 (05 문서 4.1/4.3.2): 격파 × 표적 가치 × 차수 배율.
-    // 확인(BDA) 2배와 도전 보너스는 v0.3 — 수식의 자리만 지금 세운다.
-    const spEarned = Math.round(this.kills * SP_VALUE.truck * TIER_MULTIPLIER[0]);
+    const spBase = Math.round(this.kills * SP_VALUE.truck * TIER_MULTIPLIER[0]);
+    // 확인(BDA) — Ch.1 은 고스트가 자동 확인한다(03 문서 1막 "확인 킬 시스템 학습").
+    const spConfirm = Math.round(spBase * (CONFIRM_MULTIPLIER - 1));
+    // 첫 실적 보너스 — 프롤로그의 약속을 회수한다. 반복 파밍으로는 안 나온다.
+    const spFirstClear = firstClear ? FIRST_CLEAR_BONUS : 0;
     this.result = {
       missionId: this.def.id,
       titleKey: this.def.titleKey,
-      cleared: this.kills >= this.def.destroyGoal,
+      cleared,
+      firstClear,
       kills: this.kills,
       goal: this.def.destroyGoal,
       flightSec: Math.round(flightSec),
       causeKey: CAUSE_KEY[reason],
       threat: reason === '피격' ? this.threatDetail : null,
-      spEarned,
+      spBase,
+      spConfirm,
+      spFirstClear,
+      spEarned: spBase + spConfirm + spFirstClear,
       spTotal: 0, // 지급 주체(FlightScreen)가 프로필 반영 후 채운다
     };
     return this.result;

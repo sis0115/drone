@@ -25,7 +25,24 @@ test('자폭 돌입으로 목표를 채우면 완수다 — 기체 손실은 성
   expect(d.goal).toBe(M2_1.destroyGoal);
   expect(d.flightSec).toBe(42);
   // SP 정산 (05 문서 4.1): 군용 트럭 40 × 1차수 배율 1.0
-  expect(d.spEarned).toBe(40);
+  expect(d.spBase).toBe(40);
+  // 확인(BDA) 2배 — Ch.1 은 고스트가 자동 확인한다 (05 문서 4.1 "확인 시 80")
+  expect(d.spConfirm).toBe(40);
+  // 최초 완수 — 프롤로그의 약속을 회수하는 첫 실적 보너스
+  expect(d.firstClear).toBe(true);
+  expect(d.spFirstClear).toBe(100);
+  expect(d.spEarned).toBe(180);
+});
+
+test('재도전에는 첫 실적 보너스가 없다 — 반복 파밍으로 나오는 값이 아니다', () => {
+  const runner = new MissionRunner(M2_1);
+  runner.onStrike();
+  const d = runner.finish('자폭 돌입', 30, true); // 이미 완수한 미션
+  expect(d.cleared).toBe(true);
+  expect(d.firstClear).toBe(false);
+  expect(d.spFirstClear).toBe(0);
+  // 격파 40 + 확인 40 — 확인 킬은 매번 유효하다
+  expect(d.spEarned).toBe(80);
 });
 
 test('격파가 없으면 SP 도 없다 — 참가상 금지', () => {

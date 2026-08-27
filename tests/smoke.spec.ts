@@ -684,8 +684,10 @@ test('T8c 미션 루프 — 격파하면 디브리핑이 뜨고, 재출격하면
   await expect(panel).toContainText('격파 1/1');
   await page.screenshot({ path: 'tests/__screenshots__/t8c-debrief-win.png' });
 
-  // 재출격 → 작전실(T9) → 출격 → 링크 재수립 → 새 출격. 월드가 새로 지어진다
+  // 최초 완수라 데모 종료(아웃트로)를 먼저 지난다 — 거기서 재도전을 고르면 작전실이다
   await panel.locator('.db-btn').click();
+  await page.waitForFunction(() => window.__debug.state.screen === 'outro', null, { timeout: 60_000 });
+  await page.locator('.ou-again').click();
   await page.waitForFunction(() => window.__debug.state.screen === 'loadout', null, { timeout: 60_000 });
   await page.locator('.lo-sortie').click();
   await page.locator('.br-panel').click();
@@ -756,15 +758,18 @@ test('T9 경제 — 격파 SP 가 지급되고 재접속해도 유지된다', as
   });
   expect(await page.evaluate(() => window.__debug.flight.crashed())).toBe('자폭 돌입');
 
-  // 디브리핑: 정산 줄 — 트럭 40 SP
+  // 디브리핑: 정산 줄 — 트럭 40 + 고스트 확인 40 + 첫 실적 100 = 180
   await page.waitForFunction(() => window.__debug.state.screen === 'debrief', null, { timeout: 30_000 });
-  await expect(page.locator('#debrief')).toContainText('+40 SP');
+  const sp = page.locator('#debrief');
+  await expect(sp).toContainText('+180 SP');
+  await expect(sp).toContainText('고스트 확인 +40 SP');
+  await expect(sp).toContainText('첫 실적 보너스 +100 SP');
   await page.screenshot({ path: 'tests/__screenshots__/t9-debrief-sp.png' });
 
   // 재접속 — 완전히 새로 로드해도 작전실 잔액이 남아 있다 (05 문서: 저장 시점 = 디브리핑 확정)
   await page.goto('/');
   await page.locator('#title').click();
-  await expect(page.locator('#loadout .lo-sp')).toContainText('SP 40');
+  await expect(page.locator('#loadout .lo-sp')).toContainText('SP 180');
 });
 
 test('T9 작전실 — 어시스트 선택이 비행 모델을 정하고 저장된다', async ({ page }) => {
@@ -912,4 +917,91 @@ test('격납고 — SP 가 모자라면 보급 요청이 잠긴다', async ({ pa
   const hangar = page.locator('#hangar');
   await expect(hangar.locator('.hg-badge.dim')).toContainText('SP 부족');
   expect(await hangar.locator('[data-buy]').count()).toBe(0);
+});
+
+/**
+ * 데모의 끝 — Ch.1 의 주제(03 문서 1막)가 화면에서 닫히는지 본다.
+ * 성공: 격파 → 고스트 확인 → 장관의 보급 승인 → 데모 종료.
+ * 프롤로그가 건 약속("격파를 증명하면, 장비가 갑니다")이 회수되는 자리다.
+ */
+test('데모의 끝 — 첫 완수는 확인 킬을 가르치고 장관의 보급 승인으로 닫힌다', async ({ page }) => {
+  test.setTimeout(300_000);
+  await page.goto('/');
+  await page.evaluate(() => localStorage.clear());
+  await enterFlight(page);
+  await page.evaluate(() => {
+    window.__debug.flight.setWindCalm();
+    window.__debug.flight.respawn();
+  });
+
+  await page.evaluate(async () => {
+    const t = window.__debug.flight.telemetry();
+    let z = -214;
+    t.pos.set(120, t.pos.y + (2.5 - t.agl), z);
+    t.yaw = 0;
+    const deadline = window.__debug.frame + 60;
+    while (window.__debug.frame < deadline && !window.__debug.flight.crashed()) {
+      z -= 2;
+      t.pos.set(120, t.pos.y, z);
+      t.vel.set(0, 0, -14);
+      await new Promise((r) => requestAnimationFrame(r));
+    }
+  });
+  expect(await page.evaluate(() => window.__debug.flight.crashed())).toBe('자폭 돌입');
+
+  // 디브리핑 — 확인 킬 학습: 숫자(확인 +40)와 개념(바딤의 교육)이 같은 화면에 있다
+  await page.waitForFunction(() => window.__debug.state.screen === 'debrief', null, { timeout: 30_000 });
+  const debrief = page.locator('#debrief');
+  await expect(debrief.locator('.db-result')).toContainText('임무 완수');
+  await expect(debrief).toContainText('고스트 확인 +40 SP');
+  await expect(debrief).toContainText('사진을 찍어야 실적이 된다');
+  await expect(debrief.locator('.db-btn')).toContainText('계속'); // 첫 완수는 재출격이 아니다
+  await page.screenshot({ path: 'tests/__screenshots__/demo-debrief-win.png' });
+
+  // 아웃트로 — 장관의 보급 승인 + 데모 종료 + 다음 화 예고
+  await debrief.locator('.db-btn').click();
+  await page.waitForFunction(() => window.__debug.state.screen === 'outro', null, { timeout: 60_000 });
+  const outro = page.locator('#outro');
+  await outro.click(); // 타이핑 스킵
+  await expect(outro).toContainText('첫 실적 확인');
+  await expect(outro).toContainText('손이 떨리는 건 정상이다');
+  await expect(outro.locator('.ou-end')).toContainText('데모는 여기까지');
+  await expect(outro.locator('.ou-next')).toContainText('Ch.2');
+  await page.screenshot({ path: 'tests/__screenshots__/demo-outro.png' });
+
+  // 장관이 "격납고를 확인하십시오"라고 했으니 버튼이 실제로 격납고로 보낸다
+  await outro.locator('.ou-hangar').click();
+  await expect(page.locator('#hangar .hg-head')).toContainText('SP 180');
+
+  // 작전실 — 완수가 표시되고 출격이 재도전으로 바뀐다
+  await page.locator('.hg-back').click();
+  await expect(page.locator('#loadout .lo-badge')).toContainText('완수');
+  await expect(page.locator('#loadout .lo-sortie')).toContainText('재도전');
+  await page.screenshot({ path: 'tests/__screenshots__/demo-loadout-cleared.png' });
+});
+
+/** 실패의 끝 — 원인·권고에 더해 "기체는 소모품이다"가 다음 판으로 민다 (GDD 4.5 규칙 4) */
+test('데모의 끝 — 실패는 원인과 권고, 그리고 다시 나가라는 한 줄로 닫힌다', async ({ page }) => {
+  test.setTimeout(300_000);
+  await page.goto('/');
+  await page.evaluate(() => localStorage.clear());
+  await enterFlight(page);
+  await page.evaluate(() => {
+    window.__debug.flight.setWindCalm();
+    window.__debug.flight.respawn();
+    window.__debug.flight.setBattery(0.01); // 배터리 소진으로 끝낸다 — 격파 0
+  });
+  await page.waitForFunction(() => window.__debug.flight.crashed() !== null, null, { timeout: 60_000 });
+
+  await page.waitForFunction(() => window.__debug.state.screen === 'debrief', null, { timeout: 30_000 });
+  const debrief = page.locator('#debrief');
+  await expect(debrief.locator('.db-result')).toContainText('임무 실패');
+  await expect(debrief).toContainText('기체는 소모품이다');
+  await expect(debrief.locator('.db-btn')).toContainText('재출격'); // 실패는 아웃트로로 안 간다
+  await page.screenshot({ path: 'tests/__screenshots__/demo-debrief-loss.png' });
+
+  await debrief.locator('.db-btn').click();
+  await page.waitForFunction(() => window.__debug.state.screen === 'loadout', null, { timeout: 60_000 });
+  // 실패로는 작전이 완수되지 않는다
+  await expect(page.locator('#loadout .lo-badge')).toContainText('미완수');
 });

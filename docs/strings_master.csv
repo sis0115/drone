@@ -119,3 +119,17 @@ frame.sparrow7.stat,배터리 180초 · 탄두 1,BATTERY 180S · WARHEAD 1
 frame.hornet10.name,호넷-10,HORNET-10
 frame.hornet10.desc,전선 표준 타격 기체. 대용량 셀 — 더 멀리 가고 더 오래 버틴다.,FRONTLINE STANDARD STRIKE FRAME. HIGH-CAPACITY CELL — FLIES FARTHER AND LASTS LONGER.
 frame.hornet10.stat,배터리 234초 (+30%) · 탄두 1,BATTERY 234S (+30%) · WARHEAD 1
+debrief.spBase,격파 {0} × {1} SP,KILLS {0} × {1} SP
+debrief.spConfirm,고스트 확인 +{0} SP,GHOST CONFIRMED +{0} SP
+debrief.spFirst,첫 실적 보너스 +{0} SP,FIRST RESULTS BONUS +{0} SP
+debrief.continue,▸ 계속,▸ CONTINUE
+debrief.lossNote,"바딤: 기체는 소모품이다. 너는 아니고. 다시 나가라.","VADIM: THE FRAME IS EXPENDABLE. YOU ARE NOT. GET BACK OUT THERE."
+outro.title,작전 기록 — Ch.1 들판의 추격전,OPERATION LOG — CH.1 CHASE IN THE FIELDS
+outro.demoEnd,데모는 여기까지다.,THE DEMO ENDS HERE.
+outro.next,다음 — Ch.2 「지하의 침묵」,NEXT — CH.2 "SILENCE UNDERGROUND"
+outro.hangar,▸ 격납고 확인,▸ CHECK HANGAR
+outro.again,재도전,FLY IT AGAIN
+loadout.mission,작전,OPERATION
+loadout.retry,▶ 재도전,▶ FLY AGAIN
+mission.status.cleared,완수,CLEARED
+mission.status.open,미완수,OPEN

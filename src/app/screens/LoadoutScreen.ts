@@ -3,6 +3,7 @@ import { save } from '@/core/Save';
 import { LOCALES, fmt, getLocale, setLocale, t, type Locale } from '@/i18n';
 import type { Assist } from '@/data/controls';
 import { frameById } from '@/data/frames';
+import { M2_1 } from '@/data/missions';
 import type { AppContext, Screen } from '../Screen';
 
 /**
@@ -59,12 +60,23 @@ export class LoadoutScreen implements Screen {
     ).join('');
 
     const frame = frameById(profile?.loadout.frame ?? 'frame.sparrow7');
+    /**
+     * 작전 상태 — 저장만 하고 아무도 안 읽던 `campaign` 을 화면에 꺼낸다.
+     * 완수한 사람과 안 한 사람의 작전실이 같으면 완수에 의미가 없다.
+     * 완수 뒤에도 계속 날 수 있다 — 다만 그건 '출격'이 아니라 '재도전'이다.
+     */
+    const cleared = profile?.campaign[M2_1.id]?.cleared ?? false;
     this.root.innerHTML =
       `<div class="lo-panel">` +
       `<div class="lo-head"><span>${t('ui.home.title')}</span>` +
       `<span class="lo-sp">${fmt('loadout.sp', profile?.sp ?? 0)}</span></div>` +
       `<div class="lo-frame"><span class="lo-label">${t('loadout.hangar')}</span>` +
       `<button class="lo-opt on lo-hangar">${t(frame.nameKey)} · T${frame.tier} ▸</button></div>` +
+      `<div class="lo-row"><span class="lo-label">${t('loadout.mission')}</span>` +
+      `<span class="lo-mission">${t(M2_1.titleKey)}</span>` +
+      `<span class="lo-badge ${cleared ? 'ok' : ''}">${t(
+        cleared ? 'mission.status.cleared' : 'mission.status.open',
+      )}</span></div>` +
       `<div class="lo-stats">${fmt(
         'loadout.stats',
         profile?.stats.totalKills ?? 0,
@@ -75,7 +87,7 @@ export class LoadoutScreen implements Screen {
       `<div class="lo-row"><span class="lo-label">${t('loadout.stick')}</span>${stickButtons}</div>` +
       `<div class="lo-row"><span class="lo-label">${t('loadout.video')}</span>${videoButtons}</div>` +
       `<div class="lo-row"><span class="lo-label">${t('loadout.lang')}</span>${langButtons}</div>` +
-      `<button class="db-btn lo-sortie">${t('loadout.sortie')}</button>` +
+      `<button class="db-btn lo-sortie">${t(cleared ? 'loadout.retry' : 'loadout.sortie')}</button>` +
       `</div>`;
 
     for (const el of this.root.querySelectorAll<HTMLElement>('[data-assist]')) {

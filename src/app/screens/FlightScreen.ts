@@ -348,9 +348,11 @@ export class FlightScreen implements Screen {
     this.ctx.platform.vibrate([90, 60, 140]);
     this.ctx.bus.emit('flight:crashed', { reason });
     // 출격 종료 확정 — 자폭 드론이라 모든 출격은 손실로 끝난다 (T8c)
-    const debrief = this.mission.finish(reason, this.elapsed);
-    // SP 지급 + 전적 + 저장 — 저장 시점은 "디브리핑 확정"이다 (05 문서 1장)
     const profile = this.ctx.state.profile;
+    // 최초 완수 여부는 프로필이 안다 — 러너에 알려 줘야 첫 실적 보너스가 갈린다
+    const alreadyCleared = profile?.campaign[this.mission.def.id]?.cleared ?? false;
+    const debrief = this.mission.finish(reason, this.elapsed, alreadyCleared);
+    // SP 지급 + 전적 + 저장 — 저장 시점은 "디브리핑 확정"이다 (05 문서 1장)
     if (profile) {
       profile.sp += debrief.spEarned;
       profile.stats.totalKills += debrief.kills;

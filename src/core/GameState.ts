@@ -12,7 +12,8 @@ export type ScreenName =
   | 'loadout'
   | 'hangar'
   | 'flight'
-  | 'debrief';
+  | 'debrief'
+  | 'outro';
 export type FlightMode = 'arcade' | 'pro';
 
 /**
@@ -39,6 +40,14 @@ export interface DebriefData {
   threat: ThreatCauseDetail | null;
   /** 이번 출격 SP 정산 (05 문서 4장). 지급은 디브리핑 확정 시점 */
   spEarned: number;
+  /** 정산 내역 — 디브리핑이 한 줄씩 보여 준다. 합이 spEarned 다 */
+  spBase: number;
+  /** 고스트 확인(BDA) 보너스 — Ch.1 의 주제(확인 킬 학습)를 숫자로 보여 주는 자리 */
+  spConfirm: number;
+  /** 최초 완수 보너스 — 프롤로그의 약속을 회수한다. 재도전에는 0 */
+  spFirstClear: number;
+  /** 이번 완수가 이 미션의 **최초** 완수인가 — 데모 종료(아웃트로) 분기 */
+  firstClear: boolean;
   /** 지급 후 잔액 — 디브리핑 화면이 카운트 표기에 쓴다 */
   spTotal: number;
 }

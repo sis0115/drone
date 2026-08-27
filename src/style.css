@@ -280,9 +280,13 @@ html, body {
 .db-panel {
   display: flex;
   flex-direction: column;
-  gap: 0.55em;
+  /* 완수 디브리핑은 정산 내역 3줄 + 교육 1줄까지 붙어 가장 길다.
+     가로 폰(높이 ~412px)에서 제목이 잘리고 버튼이 접혔다(실측) — 세로 리듬을 높이에 묶는다. */
+  gap: clamp(0.2em, 0.7vh, 0.55em);
   min-width: min(320px, 72vw);
-  padding: clamp(16px, 3vh, 26px) clamp(20px, 4vw, 34px);
+  max-height: 94vh;
+  overflow-y: auto;
+  padding: clamp(10px, 2vh, 26px) clamp(20px, 4vw, 34px);
   border: 1px solid var(--c-line);
   background: rgba(10, 15, 11, 0.88);
   font-family: var(--font-mono);
@@ -296,10 +300,10 @@ html, body {
 }
 
 .db-result {
-  font-size: clamp(17px, 3vw, 26px);
+  font-size: clamp(15px, 2.6vw, 26px);
   font-weight: 700;
   letter-spacing: 0.14em;
-  margin-bottom: 0.25em;
+  margin-bottom: clamp(0, 0.4vh, 0.25em);
 }
 .db-result.ok { color: var(--c-text-primary); }
 .db-result.bad { color: var(--c-accent-red); }
@@ -308,9 +312,17 @@ html, body {
 .db-line.red { color: var(--c-accent-red); }
 .db-line.amb { color: var(--c-accent-amber); }
 .db-line.ghost { color: var(--c-text-dim); margin-top: 0.5em; font-style: normal; }
+/* SP 정산 내역 — 합계(.db-line.amb) 아래 들여 쓴 잔줄 */
+.db-sub {
+  font-size: clamp(9px, 1.3vw, 11px);
+  color: var(--c-text-dim);
+  padding-left: 1.2em;
+  letter-spacing: 0.1em;
+}
+.db-sub.amb { color: var(--c-accent-amber); }
 
 .db-btn {
-  margin-top: 0.9em;
+  margin-top: clamp(0.3em, 1.2vh, 0.9em);
   padding: 0.55em 1.2em;
   background: transparent;
   border: 1px solid var(--c-text-primary);
@@ -378,6 +390,22 @@ html, body {
   min-width: 5.5em;
   letter-spacing: 0.14em;
 }
+.lo-mission {
+  font-family: var(--font-mono);
+  font-size: clamp(11px, 1.6vw, 14px);
+  color: var(--c-text-white);
+  letter-spacing: 0.1em;
+}
+/* 작전 상태 — 완수는 상태 표시지 트로피가 아니다(04 문서 6장 축하 금지) */
+.lo-badge {
+  font-family: var(--font-mono);
+  font-size: clamp(9px, 1.3vw, 11px);
+  letter-spacing: 0.16em;
+  padding: 0.2em 0.6em;
+  border: 1px solid var(--c-line);
+  color: var(--c-text-dim);
+}
+.lo-badge.ok { border-color: var(--c-text-primary); color: var(--c-text-primary); }
 .lo-opt {
   padding: 0.35em 0.7em;
   background: transparent;
@@ -541,6 +569,37 @@ html, body {
   min-height: 10em;
 }
 .st-row { display: flex; gap: 0.8em; align-items: stretch; }
+/* ── 데모의 끝 — 프롤로그와 같은 판을 쓴다(같은 목소리로 열고 닫는다) ── */
+#outro {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+}
+.ou-panel { background: rgba(10, 15, 11, 0.92); gap: 0.7em; max-height: 94vh; overflow-y: auto; }
+.ou-head {
+  font-family: var(--font-mono);
+  font-size: clamp(10px, 1.4vw, 13px);
+  letter-spacing: 0.22em;
+  color: var(--c-text-dim);
+}
+.ou-body { min-height: 6.5em; }
+.ou-end {
+  font-family: var(--font-mono);
+  font-size: clamp(13px, 2vw, 17px);
+  letter-spacing: 0.18em;
+  color: var(--c-text-primary);
+}
+.ou-next {
+  font-family: var(--font-mono);
+  font-size: clamp(10px, 1.4vw, 12px);
+  letter-spacing: 0.14em;
+  color: var(--c-accent-amber);
+}
+.ou-again { flex: 0 0 auto; }
+.ou-hangar { flex: 1; text-align: center; margin-top: 0; }
 .st-skip { flex: 0 0 auto; }
 .st-next { flex: 1; text-align: center; }
 
