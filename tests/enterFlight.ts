@@ -8,6 +8,11 @@ import type { Page } from '@playwright/test';
  */
 export async function enterFlight(page: Page): Promise<void> {
   await page.goto('/');
+  // 타이틀 — 탭해서 접속
+  await page.locator('#title').click();
+  // 최초 1회 프롤로그가 끼면 건너뛴다
+  const skip = page.locator('.st-skip');
+  if (await skip.isVisible().catch(() => false)) await skip.click();
   await page.locator('.lo-sortie').click();
   // 브리핑 — 한 번 탭해 타이핑을 스킵하고 링크 수립
   await page.locator('.br-panel').click();

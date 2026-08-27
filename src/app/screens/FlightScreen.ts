@@ -16,6 +16,7 @@ import { ThreatRunner, type ThreatFrame } from '@/mission/threats/ThreatRunner';
 import { buildThreats } from '@/mission/buildThreats';
 import { MissionRunner } from '@/mission/MissionRunner';
 import { M2_1 } from '@/data/missions';
+import { frameById } from '@/data/frames';
 import { destroyTarget, updateTargets } from '@/world/Targets';
 import { findImpact } from '@/mission/Strike';
 import { AoLimit, type AoState } from '@/mission/AoLimit';
@@ -84,6 +85,9 @@ export class FlightScreen implements Screen {
       wind: this.wind,
       onCrash: (reason) => this.crash(reason),
     };
+    // 기체 성능 — 격납고에서 고른 기체의 배터리 배율 (05 문서 4.5)
+    this.battery.capacityMult = frameById(ctx.state.profile?.loadout.frame ?? 'frame.sparrow7').batteryMult;
+
     // 어시스트가 비행 모델을 정한다 (GDD 7장): full=아케이드 / semi=프로 앵글 / acro=프로 레이트
     const assist = (ctx.state.profile?.settings.assist ?? 'full') as 'full' | 'semi' | 'acro';
     this.models = {

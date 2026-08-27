@@ -2,6 +2,7 @@ import type { ScreenName } from '@/core/GameState';
 import { save } from '@/core/Save';
 import { LOCALES, fmt, getLocale, setLocale, t, type Locale } from '@/i18n';
 import type { Assist } from '@/data/controls';
+import { frameById } from '@/data/frames';
 import type { AppContext, Screen } from '../Screen';
 
 /**
@@ -57,10 +58,13 @@ export class LoadoutScreen implements Screen {
         `<button class="lo-opt ${l === getLocale() ? 'on' : ''}" data-lang="${l}">${l.toUpperCase()}</button>`,
     ).join('');
 
+    const frame = frameById(profile?.loadout.frame ?? 'frame.sparrow7');
     this.root.innerHTML =
       `<div class="lo-panel">` +
       `<div class="lo-head"><span>${t('ui.home.title')}</span>` +
       `<span class="lo-sp">${fmt('loadout.sp', profile?.sp ?? 0)}</span></div>` +
+      `<div class="lo-frame"><span class="lo-label">${t('loadout.hangar')}</span>` +
+      `<button class="lo-opt on lo-hangar">${t(frame.nameKey)} · T${frame.tier} ▸</button></div>` +
       `<div class="lo-stats">${fmt(
         'loadout.stats',
         profile?.stats.totalKills ?? 0,
@@ -87,6 +91,7 @@ export class LoadoutScreen implements Screen {
       el.addEventListener('click', () => this.setLang(el.dataset.lang as Locale));
     }
     this.root.querySelector('.lo-sortie')?.addEventListener('click', () => this.sortie());
+    this.root.querySelector('.lo-hangar')?.addEventListener('click', () => this.ctx.go('hangar'));
   }
 
   private setAssist(assist: Assist): void {

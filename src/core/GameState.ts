@@ -10,6 +10,7 @@ export type ScreenName =
   | 'ops'
   | 'briefing'
   | 'loadout'
+  | 'hangar'
   | 'flight'
   | 'debrief';
 export type FlightMode = 'arcade' | 'pro';

@@ -99,3 +99,23 @@ radio.m2.kill,"고스트: 확인했다. 잘 가라, 고철.","GHOST: CONFIRMED. 
 radio.threat.a1,바딤: 산탄총이다! 위로 뽑든가 바닥에 붙어!,VADIM: SHOTGUN! CLIMB OR HUG THE DIRT!
 radio.ao.warn,바딤: 커버리지 끝이다. 돌아와!,VADIM: EDGE OF COVERAGE. TURN BACK!
 hud.objective,TGT {0}/{1},TGT {0}/{1}
+title.tagline,저화질 FPV 전쟁 시뮬레이터,LOW-FIDELITY FPV WAR SIMULATOR
+story.skip,건너뛰기 ▸,SKIP ▸
+story.next,▸ 계속,▸ CONTINUE
+story.prologue.header,[전군 공지 — 국방혁신부],[ALL-FORCES NOTICE — MINISTRY OF DEFENSE INNOVATION]
+story.prologue.minister,"""오늘부로 보급 체계를 바꿉니다. 연공서열도, 서류도 아닙니다. 격파를 증명하면, 장비가 갑니다. 여러분의 화면이 곧 보급창구입니다."" — 장관 소린","""EFFECTIVE TODAY, SUPPLY CHANGES. NOT SENIORITY. NOT PAPERWORK. PROVE YOUR KILLS, AND EQUIPMENT MOVES. YOUR SCREEN IS YOUR SUPPLY LINE."" — MINISTER SORIN"
+story.prologue.vadim,"바딤: ""장관이라는 게 나보다 어려. …그래도 저 말은 맞다. 여기선 증명한 놈만 산다. 가자, 애송이.""","VADIM: ""THE MINISTER IS YOUNGER THAN ME. …STILL, HE'S RIGHT. OUT HERE, ONLY THE PROVEN SURVIVE. MOVE, ROOKIE."""
+story.prologue.context,징집 3주차. 원래 직업은 배달 라이더 — 드론 감각이 있다는 이유로 속성 교육 후 동부 전선 투입. 당신은 참호가 아니라 지하 벙커의 모니터 앞에 있다.,THIRD WEEK SINCE CONSCRIPTION. YOU WERE A DELIVERY RIDER — DRAFTED FOR YOUR DRONE HANDS. YOU ARE NOT IN THE TRENCH. YOU ARE IN A BUNKER IN FRONT OF A MONITOR.
+loadout.hangar,격납고,HANGAR
+hangar.title,격납고,HANGAR
+hangar.back,◂ 작전실,◂ OPS ROOM
+hangar.equipped,운용 중,IN SERVICE
+hangar.select,배치,DEPLOY
+hangar.buy,보급 요청 {0} SP,REQUISITION {0} SP
+hangar.locked,SP 부족,INSUFFICIENT SP
+frame.sparrow7.name,스패로우-7,SPARROW-7
+frame.sparrow7.desc,훈련용 개조 기체. 소모품 취급이라 재고 무제한 — 잃어도 아무도 묻지 않는다.,CONVERTED TRAINER. EXPENDABLE — NOBODY ASKS ABOUT LOSSES.
+frame.sparrow7.stat,배터리 180초 · 탄두 1,BATTERY 180S · WARHEAD 1
+frame.hornet10.name,호넷-10,HORNET-10
+frame.hornet10.desc,전선 표준 타격 기체. 대용량 셀 — 더 멀리 가고 더 오래 버틴다.,FRONTLINE STANDARD STRIKE FRAME. HIGH-CAPACITY CELL — FLIES FARTHER AND LASTS LONGER.
+frame.hornet10.stat,배터리 234초 (+30%) · 탄두 1,BATTERY 234S (+30%) · WARHEAD 1

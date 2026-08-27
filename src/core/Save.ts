@@ -16,6 +16,8 @@ export interface Loadout {
 
 export interface PlayerProfile {
   schemaVersion: number;
+  /** 프롤로그를 봤는가 — 타이틀에서 스토리/작전실 분기 */
+  introSeen: boolean;
   sp: number;
   trustTier: number;
   trustProgress: number;
@@ -36,6 +38,7 @@ export interface PlayerProfile {
 export function defaultProfile(): PlayerProfile {
   return {
     schemaVersion: SCHEMA_VERSION,
+    introSeen: false,
     sp: 0,
     trustTier: 1,
     trustProgress: 0,

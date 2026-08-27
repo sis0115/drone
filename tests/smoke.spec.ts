@@ -17,7 +17,20 @@ test('부팅 → 링크 접속 → 스크린샷', async ({ page }) => {
 
   await page.goto('/');
 
-  // T9 이후 첫 화면은 작전실이다 — 출격 버튼이 있어야 게임에 들어갈 수 있다
+  // 대기 화면 — 무신호 노이즈 위 로고와 접속 안내 (04 문서 3.1)
+  await expect(page.locator('.ti-logo')).toContainText('SIGNAL LOST');
+  await expect(page.locator('.ti-tap')).toContainText(/접속|TAP/);
+  await page.screenshot({ path: 'tests/__screenshots__/demo-title.png' });
+  await page.locator('#title').click();
+
+  // 최초 접속 — 프롤로그 (03 문서 1막). 다 읽고 계속.
+  await expect(page.locator('#story')).toBeVisible();
+  await page.locator('.st-panel').click(); // 타이핑 스킵
+  await expect(page.locator('#story')).toContainText('격파를 증명하면');
+  await page.screenshot({ path: 'tests/__screenshots__/demo-story.png' });
+  await page.locator('.st-next').click();
+
+  // 작전실 — 출격 버튼이 있어야 게임에 들어갈 수 있다
   await expect(page.locator('#loadout .lo-sortie')).toBeVisible();
   await page.screenshot({ path: 'tests/__screenshots__/t9-loadout.png' });
   await page.locator('.lo-sortie').click();
@@ -750,6 +763,7 @@ test('T9 경제 — 격파 SP 가 지급되고 재접속해도 유지된다', as
 
   // 재접속 — 완전히 새로 로드해도 작전실 잔액이 남아 있다 (05 문서: 저장 시점 = 디브리핑 확정)
   await page.goto('/');
+  await page.locator('#title').click();
   await expect(page.locator('#loadout .lo-sp')).toContainText('SP 40');
 });
 
@@ -757,6 +771,8 @@ test('T9 작전실 — 어시스트 선택이 비행 모델을 정하고 저장�
   await page.goto('/');
   await page.evaluate(() => localStorage.clear());
   await page.goto('/');
+  await page.locator('#title').click();
+  await page.locator('.st-skip').click();
   // 세미(프로 앵글) 선택 → 출격 → 브리핑 통과 → 비행 모델이 프로다
   await page.locator('[data-assist="semi"]').click();
   await page.locator('.lo-sortie').click();
@@ -765,8 +781,9 @@ test('T9 작전실 — 어시스트 선택이 비행 모델을 정하고 저장�
   await page.waitForFunction(() => window.__debug?.ready === true, null, { timeout: 120_000 });
   expect(await page.evaluate(() => window.__debug.flight.mode())).toBe('pro');
 
-  // 재접속해도 선택이 남아 있다 (저장 시점 = 설정 변경)
+  // 재접속해도 선택이 남아 있다 (저장 시점 = 설정 변경) — 프롤로그는 봤으니 안 나온다
   await page.goto('/');
+  await page.locator('#title').click();
   await expect(page.locator('[data-assist="semi"]')).toHaveClass(/on/);
 });
 
@@ -778,6 +795,8 @@ test('T10 i18n — 언어를 바꾸면 그 자리에서 바뀌고, 재접속해�
   await page.goto('/');
   await page.evaluate(() => localStorage.clear());
   await page.goto('/');
+  await page.locator('#title').click();
+  await page.locator('.st-skip').click();
 
   const sortie = page.locator('.lo-sortie');
   await expect(sortie).toContainText('출격');
@@ -788,6 +807,7 @@ test('T10 i18n — 언어를 바꾸면 그 자리에서 바뀌고, 재접속해�
 
   // 재접속 — 설정 저장(05 문서: 저장 시점 = 설정 변경)
   await page.goto('/');
+  await page.locator('#title').click();
   await expect(page.locator('.lo-sortie')).toContainText('SORTIE');
 
   // 인게임 문자열도 영어다 — 디브리핑까지 가는 대신 HUD 패드 라벨은 dev 전용이라
@@ -840,4 +860,56 @@ test('데모 — HUD 목표와 무전 안내가 첫 판을 이끈다', async ({ 
   // 고스트 확인 무전은 디브리핑에 얹힌다 — 정지 화면 2.5초로는 못 읽는다
   await page.waitForFunction(() => window.__debug.state.screen === 'debrief', null, { timeout: 30_000 });
   await expect(page.locator('#debrief')).toContainText('잘 가라');
+});
+
+/**
+ * 저장 슬롯에 프로필을 미리 심는다 — migrate() 가 나머지 필드를 채운다.
+ * addInitScript 가 아니라 1회 주입 + reload — init 스크립트는 내비게이션마다
+ * 다시 돌아서 게임이 저장한 프로필을 도로 덮어쓴다(재접속 유지 검증이 불가능해진다).
+ */
+async function seedProfile(page: import('@playwright/test').Page, patch: object): Promise<void> {
+  await page.goto('/');
+  await page.evaluate(
+    ({ key, value }) => localStorage.setItem(key, value),
+    { key: 'slfpv.save.v1', value: JSON.stringify({ schemaVersion: 1, ...patch }) },
+  );
+  await page.reload();
+}
+
+test('격납고 — 보급 요청으로 기체를 사면 SP 가 빠지고 재접속해도 유지된다', async ({ page }) => {
+  await seedProfile(page, { introSeen: true, sp: 900 });
+  await page.locator('#title').click();
+
+  // 작전실의 기체 줄 → 격납고
+  await expect(page.locator('#loadout .lo-frame')).toContainText('스패로우-7');
+  await page.locator('.lo-frame').click();
+
+  const hangar = page.locator('#hangar');
+  await expect(hangar.locator('.hg-card')).toHaveCount(2);
+  await expect(hangar.locator('.hg-badge').first()).toContainText('운용 중'); // 스패로우 배치 중
+  const buy = hangar.locator('[data-buy="frame.hornet10"]');
+  await expect(buy).toContainText('보급 요청 800 SP');
+  await page.screenshot({ path: 'tests/__screenshots__/demo-hangar.png' });
+
+  // 구매 — SP 차감 + 즉시 배치
+  await buy.click();
+  await expect(hangar.locator('.hg-head .lo-sp')).toContainText('100');
+  const hornetCard = hangar.locator('.hg-card').nth(1);
+  await expect(hornetCard).toContainText('운용 중');
+  await page.screenshot({ path: 'tests/__screenshots__/demo-hangar-owned.png' });
+
+  // 재접속에도 남는다
+  await page.reload();
+  await page.locator('#title').click();
+  await expect(page.locator('#loadout .lo-frame')).toContainText('호넷-10');
+});
+
+test('격납고 — SP 가 모자라면 보급 요청이 잠긴다', async ({ page }) => {
+  await seedProfile(page, { introSeen: true, sp: 40 });
+  await page.locator('#title').click();
+  await page.locator('.lo-frame').click();
+
+  const hangar = page.locator('#hangar');
+  await expect(hangar.locator('.hg-badge.dim')).toContainText('SP 부족');
+  expect(await hangar.locator('[data-buy]').count()).toBe(0);
 });
