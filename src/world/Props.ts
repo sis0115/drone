@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { fbm, random, rnd } from './noise';
-import { roofTex, texMat, wallTex } from './textures';
+import { concreteTex, roofTex, texMat, wallTex } from './textures';
 import { terrainH } from './Terrain';
 import { buildInstanced, type InstanceSpec } from './Instancing';
 import type { ThermalRegistry } from './ThermalRegistry';
@@ -135,6 +135,8 @@ function buildHouses(
 
   const chimneys: InstanceSpec[] = [];
   const rubble: InstanceSpec[] = [];
+  // 기단은 **인스턴싱**한다 — 집마다 개별 Mesh 로 두면 19 드로우콜이 그냥 날아간다(실측 84→103)
+  const plinths: InstanceSpec[] = [];
 
   const fencePosts: InstanceSpec[] = [];
   const fenceRails: InstanceSpec[] = [];
@@ -194,6 +196,24 @@ function buildHouses(
     const w = kind === 1 ? rnd(16, 26) : rnd(7, 12);
     const d = kind === 1 ? rnd(20, 34) : rnd(8, 14);
     const h = kind === 1 ? rnd(6, 9) : rnd(3.2, 4.6);
+    /**
+     * **방향** — 모든 집이 축 정렬이었다(회전 코드가 아예 없었다). 상공에서 집 19채가
+     * 전부 같은 쪽을 보고 있으면 그 한 가지만으로 씬이 프로시저럴로 읽힌다.
+     * 농가는 길·바람·볕을 보고 앉으므로 완전 무작위는 아니다 — 대략 두 방향에 몰리되 흔들린다.
+     */
+    const yaw = (random() < 0.62 ? 0 : Math.PI / 2) + rnd(-0.5, 0.5);
+
+    /**
+     * **기초** — 벽 상자를 지표에 얹기만 하면 경사에서 한쪽 귀퉁이가 뜬다(능선 도입 후 심해짐).
+     * 실제 건물은 땅을 고르고 기초를 놓는다. 벽보다 약간 넓은 기단을 **묻어** 둔다:
+     * 바닥선이 지형에 먹히면서 접지가 해결되고, 벽 아래 어두운 띠가 생겨 무게가 붙는다.
+     */
+    plinths.push({
+      p: [px, y + 0.35, pz],
+      r: [0, yaw, 0],
+      s: [w * 1.08, 2.2, d * 1.08],
+      c: 0xffffff, // 색은 콘크리트 맵이 맡는다 (인스턴스 색과 맵은 곱해진다)
+    });
 
     const walls = registry.registerAs(
       new THREE.Mesh(
@@ -202,7 +222,10 @@ function buildHouses(
       ),
       'wall',
     );
-    walls.position.set(px, y + h / 2, pz);
+    walls.position.set(px, y + h / 2 + 1.1, pz);
+    walls.rotation.y = yaw;
+    // 폐가는 내려앉는다 — 반듯한 폐허는 없다
+    if (kind === 2) walls.rotation.z = rnd(-0.035, 0.035);
     walls.castShadow = true;
     walls.receiveShadow = true;
     scene.add(walls);
@@ -217,15 +240,19 @@ function buildHouses(
         new THREE.Mesh(new THREE.CylinderGeometry(rw, rw, d * 1.08, 3), ROOF[kind === 1 ? 1 : 0]),
         kind === 1 ? HEAT.roofMetal : HEAT.roof,
       );
-      roof.rotation.x = -Math.PI / 2;
+      // 지붕은 벽과 같은 방향으로 앉아야 한다 — 회전 순서상 Y 를 먼저, 그다음 X 눕히기
+      roof.rotation.set(-Math.PI / 2, 0, 0);
+      roof.rotation.order = 'YXZ';
+      roof.rotation.y = yaw;
       roof.scale.set(1, 1, 0.56);
-      roof.position.set(px, y + h + w * 0.115, pz);
+      roof.position.set(px, y + h + w * 0.115 + 1.1, pz);
       roof.castShadow = true;
+      roof.receiveShadow = true;
       scene.add(roof);
       if (kind === 0 && random() < 0.6) makeYardFence(px, pz, w, d);
       if (kind === 0 && random() < 0.7) {
         chimneys.push({
-          p: [px + rnd(-w * 0.25, w * 0.25), y + h + 1.6, pz + rnd(-d * 0.2, d * 0.2)],
+          p: [px + rnd(-w * 0.25, w * 0.25), y + h + 2.7, pz + rnd(-d * 0.2, d * 0.2)],
           r: [0, 0, 0],
           s: [1, 1, 1],
           c: 0x8a7a68,
@@ -251,11 +278,58 @@ function buildHouses(
     });
   };
 
-  for (let i = 0; i < 11; i++) makeHouse(rnd(-340, 60), rnd(-340, 340), 0);
-  for (let i = 0; i < 4; i++) makeHouse(rnd(-330, 40), rnd(-330, 330), 1);
-  for (let i = 0; i < 4; i++) makeHouse(rnd(-330, 40), rnd(-330, 330), 2);
+  /**
+   * **마을 군집** (아트 패스 5).
+   *
+   * 이전에는 집 19채를 (-340..60, -340..340) 에 균등 살포했다. 결과는 벌판에 홀로
+   * 선 집들 — 초목의 균일 살포와 **정확히 같은 병**이다(근접 실측). 사람은 모여 산다:
+   * 농가 몇 채와 헛간 하나가 **같은 마당·같은 진입로**를 두고 앉고, 그 사이에 폐가가 섞인다.
+   * 군집 자체가 정보다 — "여기 사람이 살았다"는 문장은 집 한 채로는 안 만들어진다.
+   */
+  /**
+   * ⚠️ 마을 **구성은 고정**이다(농가 수·헛간·폐가 유무). 처음엔 이걸 난수로 뽑았다가
+   * 장애물 수가 시드마다 달라져 `world.spec` 이 잡았다 — 개수가 흔들리면 드로우콜 예산과
+   * 미션 난이도가 같이 흔들린다. **흔들려도 되는 것은 자리와 방향뿐이다.**
+   */
+  const hamlets: { x: number; z: number; houses: number; barn: boolean; ruin: boolean }[] = [
+    { x: -96, z: 108, houses: 3, barn: true, ruin: true },
+    { x: -238, z: -172, houses: 2, barn: true, ruin: false },
+    { x: -34, z: -286, houses: 3, barn: false, ruin: true },
+    { x: -296, z: 232, houses: 2, barn: true, ruin: true },
+    { x: 22, z: 44, houses: 2, barn: false, ruin: false },
+  ];
+  for (const h of hamlets) {
+    // 마을 하나가 바라보는 방향 — 진입로 쪽. 집들이 대체로 이 축을 따라 앉는다.
+    const axis = rnd(0, Math.PI * 2);
+    for (let i = 0; i < h.houses; i++) {
+      // 마당을 사이에 두고 축을 따라 늘어선다
+      const t = (i - (h.houses - 1) / 2) * rnd(22, 34);
+      const off = rnd(-14, 14);
+      makeHouse(h.x + Math.cos(axis) * t - Math.sin(axis) * off, h.z + Math.sin(axis) * t + Math.cos(axis) * off, 0);
+    }
+    // 헛간은 마당 건너편에 — 농가와 마주 본다
+    if (h.barn) {
+      const bo = rnd(38, 58);
+      makeHouse(h.x - Math.sin(axis) * bo, h.z + Math.cos(axis) * bo, 1);
+    }
+    // 폐가 — 마을 언저리. 성한 집 옆의 무너진 집이 전쟁을 말한다.
+    if (h.ruin) {
+      const ro = rnd(44, 72);
+      const ra = axis + rnd(1.6, 2.6);
+      makeHouse(h.x + Math.cos(ra) * ro, h.z + Math.sin(ra) * ro, 2);
+    }
+  }
+  // 외딴 농가 몇 채 — 전부 모여 있으면 그건 그것대로 규칙적이다
+  for (let i = 0; i < 3; i++) makeHouse(rnd(-330, 40), rnd(-330, 330), 0);
 
   const opts = { registry, scene };
+  // 기단 — 단위 상자에 필지별 크기를 인스턴스 스케일로 준다. 콘크리트 물때가 접지를 돕는다.
+  const plinthTex = concreteTex();
+  plinthTex.repeat.set(3, 1);
+  buildInstanced(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshLambertMaterial({ map: plinthTex, color: 0xffffff }), plinths, {
+    heat: HEAT.wall,
+    ...opts,
+  });
   buildInstanced(new THREE.BoxGeometry(0.8, 2.2, 0.8), new THREE.MeshLambertMaterial({ color: 0xffffff }), chimneys, {
     heat: HEAT.chimney,
     ...opts,
@@ -308,7 +382,12 @@ function buildPylons(scene: THREE.Scene, registry: ThermalRegistry, obstacles: O
     const px = rnd(-240, 240);
     const pz = rnd(-240, 240);
     const ty = terrainH(px, pz) + 18;
-    list.push({ p: [px, ty, pz], r: [0, 0, 0], s: [1, 1, 1], c: 0x6d6d63 });
+    /**
+     * ⚠️ 인스턴스 색과 맵은 **곱해진다.** 맵 없이 회색 틴트(0x6d6d63 ≈ 0.43)를 쓰던 자리에
+     * 콘크리트 맵(≈0.52)을 얹었더니 0.22 가 되어 기둥이 새까매졌다(실측).
+     * 맵이 색을 맡으면 틴트는 흰색이어야 한다. 밝기 편차는 맵 안에서 준다.
+     */
+    list.push({ p: [px, ty, pz], r: [0, 0, 0], s: [1, 1, 1], c: 0xffffff });
     obstacles.push({
       position: new THREE.Vector3(px, ty, pz),
       radius: 2.4,
@@ -316,7 +395,10 @@ function buildPylons(scene: THREE.Scene, registry: ThermalRegistry, obstacles: O
       box: new THREE.Box3(new THREE.Vector3(px - 1, ty - 18, pz - 1), new THREE.Vector3(px + 1, ty + 18, pz + 1)),
     });
   }
-  buildInstanced(new THREE.BoxGeometry(2, 36, 2), new THREE.MeshLambertMaterial({ color: 0xffffff }), list, {
+  // 민짜 회색 상자로 두면 근접에서 "미완성 오브젝트"로 읽힌다 — 물때·이음선을 입힌다
+  const tex = concreteTex();
+  tex.repeat.set(1, 9); // 36m 기둥에 4m 주기
+  buildInstanced(new THREE.BoxGeometry(2, 36, 2), new THREE.MeshLambertMaterial({ map: tex, color: 0xffffff }), list, {
     heat: HEAT.pylon,
     registry,
     scene,

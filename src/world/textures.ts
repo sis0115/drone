@@ -96,7 +96,17 @@ export function roadTex(sz: number): THREE.CanvasTexture {
       const k = (j * sz + i) * 4;
       const n = hash2(i * 1.7, j * 1.3);
       const f = fbm(i * q * 0.05, j * q * 0.05, 3);
-      const u = i / sz; // 0(좌측 갓길) ~ 1(우측 갓길)
+      /**
+       * **갓길** (아트 패스 5). 이전에는 텍스처 전체가 아스팔트라 노면이 들판과
+       * 흰 선 하나로 딱 끊겼다(실측). 실제 시골 도로는 자갈 갓길 → 배수로 → 들판이다.
+       * 도로 메시를 14m → 22m 로 넓히고, 바깥 18% 씩을 여기서 갓길로 그린다.
+       * `au` 는 아스팔트 안에서의 좌표 — 차선·크랙 같은 노면 무늬는 전부 이 좌표를 쓴다.
+       */
+      const uAll = i / sz;
+      const SH = 0.18;
+      const shoulder = Math.min(uAll, 1 - uAll) < SH;
+      const au = Math.max(0, Math.min(1, (uAll - SH) / (1 - 2 * SH)));
+      const u = au;
       let v = 116 + (f - 0.5) * 40 + (n - 0.5) * 24;
 
       // 타이어 마모대 — 아스팔트에서 가장 먼저 생기는 무늬. 차로당 2줄, 완만한 골.
@@ -115,13 +125,29 @@ export function roadTex(sz: number): THREE.CanvasTexture {
       // 포트홀 — 아주 드문 검은 점
       if (hash2(i * q * 0.31, j * q * 0.27) > 0.9965) v -= 60;
 
-      const edge = Math.min(i, sz - 1 - i) / (sz * 0.5);
-      if (edge < 0.13) v -= (0.13 - edge) * 250; // 가장자리 흙 침식
+      // 노면 가장자리 — 아스팔트가 부서지며 흙에 먹힌다
+      const edge = Math.max(0, Math.min(au, 1 - au)) / 0.5;
+      if (!shoulder && edge < 0.13) v -= (0.13 - edge) * 250;
       if (n > 0.988) v += 42; // 자갈 반짝임
 
       let r = v * 1.02;
       let g = v;
       let b = v * 0.96;
+
+      if (shoulder) {
+        // 자갈 갓길 — 밝고 거칠고 따뜻하다. 바깥쪽으로 갈수록 풀에 먹힌다.
+        const out = (SH - Math.min(uAll, 1 - uAll)) / SH; // 0 = 노면 접점, 1 = 들판 접점
+        let gv = 128 + (n - 0.5) * 46 + (f - 0.5) * 22;
+        if (n > 0.93) gv += 34; // 굵은 자갈
+        // 배수로 — 갓길 중턱의 어두운 골
+        const ditch = 1 - Math.abs(out - 0.62) / 0.22;
+        if (ditch > 0) gv -= ditch * 46;
+        // 풀 침범 — 바깥 끝에서 올라온다
+        const grass = Math.max(0, (out - 0.6) / 0.4) * (0.4 + fbm(i * q * 0.4, j * q * 0.4, 2) * 0.9);
+        r = gv * 1.06 * (1 - grass) + 96 * grass;
+        g = gv * 1.0 * (1 - grass) + 104 * grass;
+        b = gv * 0.84 * (1 - grass) + 68 * grass;
+      }
       // 바랜 중앙 점선 — 세로(j) 12px 주기 중 7px 만 칠하고, 닳아서 끊긴다
       if (Math.abs(u - 0.5) < 0.014 && Math.floor(j * q) % 12 < 7 && hash2(Math.floor(j * q) * 0.7, 3.1) > 0.3) {
         const paint = 150 + (n - 0.5) * 40;
@@ -349,9 +375,23 @@ export function roofTex(metal: boolean): THREE.CanvasTexture {
         // 장마다 미묘한 색 편차 — 갈아 끼운 기와
         const tileId = Math.floor(i / 8) * 31 + Math.floor(j / 8) * 17;
         v *= 0.92 + hash2(tileId, 3.7) * 0.16;
-        r = v * 1.32;
-        g = v * 0.72;
-        b = v * 0.56;
+        /**
+         * **풍화** (아트 패스 5). 이전 값(r×1.32 / g×0.72 / b×0.56)은 새로 구운 기와의
+         * 선명한 주홍이라 전장 팔레트에서 혼자 튀었다(근접 실측). 실제 시골 지붕은
+         * 볕에 바래고 이끼가 앉아 **채도가 낮고 얼룩덜룩**하다.
+         */
+        r = v * 1.14;
+        g = v * 0.8;
+        b = v * 0.68;
+        // 이끼·물때 — 기와 골과 아래쪽에 앉는다. 물이 고이는 곳이 더럽다는 규칙.
+        const moss = hash2(i * 0.31 + 5, j * 0.29 + 11);
+        const wet = inRow * 0.6 + (tile < 2 ? 0.4 : 0); // 골과 겹침부
+        if (moss > 0.72 - wet * 0.25) {
+          const k2 = Math.min(0.5, (moss - 0.5) * 0.8) * (0.35 + wet);
+          r = r * (1 - k2) + 74 * k2;
+          g = g * (1 - k2) + 82 * k2;
+          b = b * (1 - k2) + 56 * k2;
+        }
       }
       x.fillStyle = `rgb(${r | 0},${g | 0},${b | 0})`;
       x.fillRect(i, j, 1, 1);
@@ -377,4 +417,43 @@ export function aoTex(): THREE.CanvasTexture {
 
 export function texMat(t: THREE.Texture, color?: number): THREE.MeshLambertMaterial {
   return new THREE.MeshLambertMaterial({ map: t, color: color ?? 0xffffff });
+}
+
+
+/**
+ * 콘크리트 — 송전탑·기단처럼 민짜 회색으로 두면 근접에서 "미완성 상자"로 읽히는 면들.
+ *
+ * 풍화의 규칙은 하나다: **물이 지나간 자리가 더럽다.** 세로 물때, 아래쪽 튀김 얼룩,
+ * 거푸집 이음선, 잔금. 색을 바꾸는 게 아니라 **얼룩을 넣는 것**이 실사의 지름길이다.
+ */
+export function concreteTex(): THREE.CanvasTexture {
+  const sz = 128;
+  const { c, x } = canvas(sz, sz);
+  const img = x.createImageData(sz, sz);
+  const d = img.data;
+  for (let j = 0; j < sz; j++)
+    for (let i = 0; i < sz; i++) {
+      const k = (j * sz + i) * 4;
+      const grain = hash2(i * 1.7, j * 1.3);
+      const blotch = fbm(i * 0.045 + 3, j * 0.045 + 3, 3);
+      let v = 132 + (blotch - 0.5) * 26 + (grain - 0.5) * 13;
+      // 거푸집 이음선 — 32px 마다 가로 골
+      if (j % 32 < 1.2) v -= 16;
+      // 세로 물때 — 위에서 아래로 흘러내린 자국. 아래로 갈수록 짙다.
+      const streak = fbm(i * 0.22 + 40, 7, 2);
+      if (streak > 0.56) v -= (streak - 0.56) * 60 * (0.3 + (j / sz) * 0.9);
+      // 밑동 튀김 — 빗물이 땅을 때려 흙이 튄 구간
+      const splash = Math.max(0, (j / sz - 0.78) / 0.22);
+      v -= splash * splash * 26;
+      // 잔금
+      if (hash2(i * 0.5 + 91, j * 0.5 + 17) > 0.9955) v -= 34;
+      d[k] = v * 1.0;
+      d[k + 1] = v * 0.99;
+      d[k + 2] = v * 0.93;
+      d[k + 3] = 255;
+    }
+  x.putImageData(img, 0, 0);
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  return t;
 }

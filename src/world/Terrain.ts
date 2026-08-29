@@ -81,12 +81,12 @@ export function buildTerrain(scene: THREE.Scene, registry: ThermalRegistry): Ter
      */
     const crop =
       field < 0.3
-        ? [1.02, 0.85, 0.63] // 갈아엎은 맨흙
+        ? [0.95, 0.83, 0.66] // 갈아엎은 맨흙
         : field < 0.55
-          ? [1.24, 1.14, 0.82] // 밀 그루터기 — 마르고 밝다
+          ? [1.1, 1.04, 0.83] // 밀 그루터기 — 마르고 밝다
           : field < 0.78
-            ? [0.82, 0.95, 0.6] // 자란 작물 — 채도 낮은 녹
-            : [0.95, 0.98, 0.72]; // 묵정밭
+            ? [0.74, 0.8, 0.58] // 자란 작물 — 올리브. 선명한 연두는 "게임 잔디"다
+            : [0.87, 0.87, 0.72]; // 묵정밭 — 회카키
     // 국소 요동은 남긴다 — 필지 안이 완전히 균일하면 색종이가 된다
     const t = Math.max(0, Math.min(1, (patch - 0.38) * 3.2));
     let r = crop[0] * (1.06 - t * 0.16);
@@ -140,10 +140,24 @@ function buildRoad(scene: THREE.Scene, registry: ThermalRegistry): THREE.Mesh {
   const texRoad = roadTex(512);
   texRoad.repeat.set(1, 70);
 
-  const geo = new THREE.PlaneGeometry(14, 1500, 1, 90);
+  /**
+   * 14 → 22m. 늘어난 폭은 텍스처의 자갈 갓길·배수로가 채운다(아스팔트 폭은 그대로 14m).
+   * 가드레일(±8.4)이 갓길 위에 서게 되는데, 실제 도로가 그렇다.
+   *
+   * ⚠️ 폭을 넓히자 **횡단 단차**가 문제가 됐다. 노면 전체를 `terrainH(120, z)` 한 값으로
+   * 깔았는데, ±11m 구간의 실제 지형 단차가 최대 0.75m(실측)라 갓길이 땅에 묻혔다.
+   * 실제 도로처럼 만든다: **노면(±7m)은 평평한 노반**이고, 갓길은 바깥으로 갈수록
+   * 지면으로 내려간다. 지면이 노반보다 높은 구간에서는 노반 높이를 지킨다 — 그게 절토다.
+   */
+  const geo = new THREE.PlaneGeometry(22, 1500, 6, 90);
   const pos = geo.attributes.position;
   for (let i = 0; i < pos.count; i++) {
-    pos.setZ(i, terrainH(120, -pos.getY(i)) + 0.12);
+    const lx = pos.getX(i);
+    const z = -pos.getY(i);
+    const crown = terrainH(120, z) + 0.12;
+    const t = Math.min(1, Math.max(0, (Math.abs(lx) - 7) / 4)); // 0 = 노면 끝, 1 = 갓길 끝
+    const local = terrainH(120 + lx, z) + 0.05;
+    pos.setZ(i, crown * (1 - t) + Math.min(crown, local) * t);
   }
   geo.computeVertexNormals();
 

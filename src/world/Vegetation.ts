@@ -14,7 +14,8 @@ import { HEAT } from '@/data/thermal';
  */
 
 // 아트 패스 1: 채도를 뺀 회록. 선명한 초록은 "살아 있는 여름"이라 전장 팔레트에서 튄다.
-const CROWNS = [0x4c5a3a, 0x445236, 0x555f3e, 0x5e6042, 0x414f38, 0x666747, 0x525c3a];
+// 아트 패스 5: 회올리브로 한 번 더. 수관은 화면에서 면적이 커서 채도가 조금만 높아도 튄다.
+const CROWNS = [0x4e563e, 0x47503b, 0x555b43, 0x5c5d46, 0x454c3c, 0x63634b, 0x53573f];
 const BARK = [0x4d3d2a, 0x574734, 0x413425, 0x5f5140];
 /** 지형 해상도(SEG 150)에 삼각형을 내주고 줄였다 — 원경의 풀은 안개에 먹혀 안 보인다. */
 const GRASS_N = 13000;
@@ -85,10 +86,12 @@ function buildGrass(
     const y = terrainH(x, z);
     const s = rnd(0.6, 1.9);
     const dry = fbm(x * 0.01 + 100, z * 0.01 + 100, 3) < 0.42; // 지면 패치와 색 맞춤
+    // 아트 패스 5: 채도를 한 번 더 뺀다. 흐린 날 들판의 초록은 회올리브에 가깝다 —
+    // 녹(g)이 적(r)보다 크게 앞서면 그 순간 "게임 잔디"로 읽힌다.
     col.setRGB(
-      dry ? rnd(0.62, 0.8) : rnd(0.3, 0.46),
-      dry ? rnd(0.55, 0.7) : rnd(0.42, 0.58),
-      dry ? rnd(0.28, 0.4) : rnd(0.16, 0.26),
+      dry ? rnd(0.6, 0.76) : rnd(0.34, 0.46),
+      dry ? rnd(0.56, 0.7) : rnd(0.4, 0.52),
+      dry ? rnd(0.32, 0.43) : rnd(0.22, 0.31),
     );
     for (let k = 0; k < 2; k++) {
       // 교차 2매 빌보드
@@ -128,7 +131,8 @@ function buildGrass(
  * 인덱스로 밀면 면이 찢어진다 — 같은 위치는 같은 오프셋을 받아야 물샐틈없이 유지된다.
  * 삼각형 수는 그대로(20)라 예산 비용이 0이다. salt 로 변종을 만든다.
  */
-function lumpyIcosahedron(radius: number, salt: number, amount: number): THREE.BufferGeometry {
+/** 수관 덩어리 — 사방으로 고르게 흩는 구형 요철. 수관은 공중에 뜬 잎 뭉치라 밑면도 둥글다. */
+function blobGeometry(radius: number, salt: number, amount: number): THREE.BufferGeometry {
   const geo = new THREE.IcosahedronGeometry(radius, 0);
   const pos = geo.attributes.position;
   const v = new THREE.Vector3();
@@ -142,12 +146,38 @@ function lumpyIcosahedron(radius: number, salt: number, amount: number): THREE.B
   return geo;
 }
 
+/**
+ * 덤불 형태 — **공이 아니라 땅에 앉은 더미**다 (아트 패스 5).
+ *
+ * 이전 구현은 정이십면체 12 정점을 사방으로 ±27.5% 흩어 **가시별**이 됐다(근접 실측).
+ * 20 삼각형이라는 예산은 그대로 두고 실루엣만 고친다:
+ * 1. 아래 반쪽을 **접어 올린다** — 덤불의 밑면은 땅이라 둥글 이유가 없다
+ * 2. 거칠기를 **윗면에만** 준다 — 실루엣의 정보는 윗선에 있고, 아래는 매끈해야 앉아 보인다
+ * 3. 진폭을 0.55 → 0.34 로 — 가시가 아니라 잎 뭉치의 요철이다
+ */
+function shrubGeometry(radius: number, salt: number): THREE.BufferGeometry {
+  const geo = new THREE.IcosahedronGeometry(radius, 0);
+  const pos = geo.attributes.position;
+  const v = new THREE.Vector3();
+  for (let i = 0; i < pos.count; i++) {
+    v.set(pos.getX(i), pos.getY(i), pos.getZ(i));
+    const up = Math.max(0, v.y / radius); // 0 = 밑면, 1 = 꼭대기
+    const rough = 0.12 + up * 0.34;
+    const h = Math.sin(v.x * 12.9898 + v.y * 78.233 + v.z * 37.719 + salt) * 43758.5453;
+    const k = 1 - rough / 2 + (h - Math.floor(h)) * rough;
+    const y = v.y < 0 ? v.y * 0.34 : v.y; // 밑면을 접어 올린다
+    pos.setXYZ(i, v.x * k, y * k * 0.78, v.z * k);
+  }
+  geo.computeVertexNormals();
+  return geo;
+}
+
 function buildBushes(scene: THREE.Scene, registry: ThermalRegistry): THREE.InstancedMesh {
   // MeshLambertMaterial 은 flatShading 을 지원하지 않는다 — 하네스가 경고 수백 회로 잡았던 자리.
   // 형태 변종 3종 — 5,200개가 전부 같은 형태면 색을 바꿔도 "복붙"으로 읽힌다. 삼각형 수는 동일.
   const variants = [0, 1, 2].map((salt) => {
     const mat = new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 0, flatShading: true });
-    return new THREE.InstancedMesh(lumpyIcosahedron(1.6, salt * 17.3, 0.55), mat, 1800);
+    return new THREE.InstancedMesh(shrubGeometry(1.6, salt * 17.3), mat, 1800);
   });
   const counts = [0, 0, 0];
 
@@ -167,11 +197,12 @@ function buildBushes(scene: THREE.Scene, registry: ThermalRegistry): THREE.Insta
     const dry = fbm(x * 0.01 + 100, z * 0.01 + 100, 3) < 0.42;
     // 아트 패스 1: 녹색 채도를 뺀다. 민트빛 매끈한 덩어리가 "로우폴리 에셋"의 주범이었다.
     col.setRGB(
-      dry ? rnd(0.5, 0.62) : rnd(0.26, 0.35),
-      dry ? rnd(0.46, 0.56) : rnd(0.3, 0.4),
-      dry ? rnd(0.28, 0.36) : rnd(0.17, 0.24),
+      dry ? rnd(0.48, 0.6) : rnd(0.28, 0.36),
+      dry ? rnd(0.45, 0.55) : rnd(0.29, 0.38),
+      dry ? rnd(0.3, 0.38) : rnd(0.2, 0.27),
     );
-    dummy.position.set(x, y + rnd(0.5, 1.3), z);
+    // 밑면을 접은 형태라 중심을 낮춰야 땅에 붙는다(예전 값은 공 중심 기준이었다)
+    dummy.position.set(x, y + rnd(0.25, 0.7), z);
     dummy.rotation.set(rnd(0, 3), rnd(0, 3), rnd(0, 3));
     dummy.scale.set(rnd(0.7, 2.1), rnd(0.5, 1.2), rnd(0.7, 2.1));
     dummy.updateMatrix();
@@ -296,13 +327,13 @@ function buildTrees(scene: THREE.Scene, registry: ThermalRegistry, ao: AoCollect
   buildInstanced(new THREE.CylinderGeometry(0.26, 0.62, 7, 6), white(), trunks, { heat: HEAT.trunk, ...opts });
   // 수관도 형태 변종 2종 — 나무마다 블롭 4~6개가 서로 다른 변종을 섞어 쓴다
   buildInstanced(
-    lumpyIcosahedron(1, 5.7, 0.5),
+    blobGeometry(1, 5.7, 0.38),
     new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 0, flatShading: true }),
     crowns.filter((_, i) => i % 2 === 0),
     { heat: HEAT.canopy, ...opts },
   );
   buildInstanced(
-    lumpyIcosahedron(1, 11.9, 0.5),
+    blobGeometry(1, 11.9, 0.38),
     new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 0, flatShading: true }),
     crowns.filter((_, i) => i % 2 === 1),
     { heat: HEAT.canopy, ...opts },

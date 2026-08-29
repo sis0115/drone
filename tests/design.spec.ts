@@ -15,6 +15,8 @@ const VIEWS = [
   { id: 'b-road', x: 104, z: -70, agl: 22, yaw: Math.PI, pitch: -0.16 },
   // 상공 — 지형의 **형태**가 보이는 각. 평평하면 여기서 들통난다
   { id: 'c-high', x: 40, z: -60, agl: 75, yaw: Math.atan2(-120, 220), pitch: -0.34 },
+  // 근접 — 건물·재질을 눈앞에서 본다. 원경은 안개가 봐주지만 여기는 봐주지 않는다
+  { id: 'd-close', x: -46, z: 96, agl: 9, yaw: -2.1, pitch: -0.1 },
 ];
 
 test('디자인 점검 — 고정 3시점 컬러 샷', async ({ page }) => {
