@@ -104,12 +104,14 @@ test('플레이 세션 — 포인트 개념과 한 판의 체감', async ({ page
 
   // ── 경제 산수: 유일한 구매 대상까지 몇 판인가 ──
   const perRun = after2 - (report['1판_후_SP'] as number);
+  const runsFor = (price: number) => 1 + Math.max(0, Math.ceil((price - (report['1판_후_SP'] as number)) / perRun));
   report['경제'] = {
     첫판: report['1판_후_SP'],
     재도전_1판당: perRun,
-    호넷10_가격: 800,
-    호넷까지_남은_판수: Math.ceil((800 - after2) / perRun),
-    총_필요_판수: 1 + Math.ceil((800 - (report['1판_후_SP'] as number)) / perRun),
+    // 첫 구매까지 몇 판인가 — 데모 안에서 루프가 닫히는지의 척도
+    '아날로그_컬러_300_판수': runsFor(300),
+    '호넷10_800_판수': runsFor(800),
+    '열화상_1800_판수': runsFor(1800),
     // 호넷의 이점은 배터리 +30% 다. 한 판에 배터리를 얼마나 쓰는지와 나란히 봐야
     // 이 구매가 의미가 있는지 판정된다.
     한판_배터리_사용률: (report['2판'] as Record<string, unknown>)['쓴_배터리_퍼센트'],

@@ -17,6 +17,14 @@ import type { AppContext, Screen } from '../Screen';
  */
 const ASSIST_ORDER: Assist[] = ['full', 'semi', 'acro'];
 
+/**
+ * 체공 시간 표기. 한 소티가 10초대라 분으로만 쓰면 전적이 영원히 「0분」이다(실측).
+ * 1분 미만은 초로 쓴다.
+ */
+function duration(sec: number): string {
+  return sec < 60 ? fmt('unit.sec', Math.round(sec)) : fmt('unit.min', Math.round(sec / 60));
+}
+
 export class LoadoutScreen implements Screen {
   readonly name: ScreenName = 'loadout';
 
@@ -81,7 +89,7 @@ export class LoadoutScreen implements Screen {
         'loadout.stats',
         profile?.stats.totalKills ?? 0,
         profile?.stats.framesLost ?? 0,
-        Math.round((profile?.stats.flightTimeSec ?? 0) / 60),
+        duration(profile?.stats.flightTimeSec ?? 0),
       )}</div>` +
       `<div class="lo-row"><span class="lo-label">${t('loadout.assist')}</span>${assistButtons}</div>` +
       `<div class="lo-row"><span class="lo-label">${t('loadout.stick')}</span>${stickButtons}</div>` +

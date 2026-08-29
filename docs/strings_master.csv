@@ -73,7 +73,7 @@ cause.strike,자폭 돌입,SELF-DESTRUCT RUN
 cause.ao,작전 구역 이탈,LEFT AO COVERAGE
 loadout.sortie,▶ 출격,▶ SORTIE
 loadout.sp,SP {0},SP {0}
-loadout.stats,전과 {0} · 손실 {1} · 체공 {2}분,KILLS {0} · LOST {1} · {2}MIN
+loadout.stats,전과 {0} · 손실 {1} · 체공 {2},KILLS {0} · LOST {1} · AIRBORNE {2}
 loadout.assist,어시스트,ASSIST
 loadout.stick,스틱 모드,STICK MODE
 assist.full,풀 어시스트,FULL ASSIST
@@ -133,3 +133,19 @@ loadout.mission,작전,OPERATION
 loadout.retry,▶ 재도전,▶ FLY AGAIN
 mission.status.cleared,완수,CLEARED
 mission.status.open,미완수,OPEN
+module.cam.analogBw.name,아날로그 흑백,ANALOG B/W
+module.cam.analogBw.desc,기본 지급 카메라. 480p 흑백 — 야전에서 가장 많이 쓰이고 가장 안 보인다.,STANDARD ISSUE. 480P MONOCHROME — THE MOST COMMON EYE ON THE FRONT AND THE WORST ONE.
+module.cam.analogBw.stat,흑백 · 기본 지급,B/W · STANDARD ISSUE
+module.cam.analogColor.name,아날로그 컬러,ANALOG COLOR
+module.cam.analogColor.desc,같은 480p 에 색이 붙는다. 흙과 위장포와 녹슨 철이 갈라져 보인다.,COLOR ON THE SAME 480P. DIRT, CAMO NETTING AND RUSTED STEEL STOP LOOKING ALIKE.
+module.cam.analogColor.stat,컬러 · 식별 향상,COLOR · BETTER ID
+module.cam.thermal.name,열화상 「레드아이」,THERMAL "RED-EYE"
+module.cam.thermal.desc,엔진 열을 본다. 살아 있는 트럭과 불탄 잔해가 갈라지고 야간이 열린다.,SEES ENGINE HEAT. TELLS A LIVE TRUCK FROM A BURNT HULK, AND OPENS THE NIGHT.
+module.cam.thermal.stat,열화상 · 야간 작전 관문,THERMAL · GATE TO NIGHT OPS
+hangar.frames,기체,AIRFRAMES
+hangar.cameras,카메라,OPTICS
+hangar.owned,보유,OWNED
+hangar.lossNote,손실 시 -{0} SP,-{0} SP PER LOSS
+debrief.spLoss,기체 손실 -{0} SP,FRAME LOST -{0} SP
+unit.sec,{0}초,{0}S
+unit.min,{0}분,{0}MIN

@@ -297,6 +297,11 @@ test('스크립트 입력이 사람 입력과 같은 자리에 꽂힌다', async
  * 엔진부가 백열로 뜬다. 스크린샷 3장은 **눈으로 확인해야 한다** (CLAUDE.md 검증).
  */
 test('T6 카메라 모드 — BW → COLOR → THRM 순환과 스크린샷 3장', async ({ page }) => {
+  // 카메라는 이제 **사다리**다(GDD 6.4) — 세 칸을 보려면 세 모듈을 다 갖고 있어야 한다
+  await seedProfile(page, {
+    introSeen: true,
+    ownedModules: ['cam.analogBw', 'cam.analogColor', 'cam.thermal'],
+  });
   await enterFlight(page);
   await page.evaluate(() => {
     window.__debug.flight.setWindCalm();
@@ -890,7 +895,11 @@ test('격납고 — 보급 요청으로 기체를 사면 SP 가 빠지고 재접
   await page.locator('.lo-frame').click();
 
   const hangar = page.locator('#hangar');
+  // 슬롯 둘: 기체 2종 + 카메라 3종 (05 문서 4.3). 탭으로 갈아 낀다
   await expect(hangar.locator('.hg-card')).toHaveCount(2);
+  await hangar.locator('[data-slot="cameras"]').click();
+  await expect(hangar.locator('.hg-card')).toHaveCount(3);
+  await hangar.locator('[data-slot="frames"]').click();
   await expect(hangar.locator('.hg-badge').first()).toContainText('운용 중'); // 스패로우 배치 중
   const buy = hangar.locator('[data-buy="frame.hornet10"]');
   await expect(buy).toContainText('보급 요청 800 SP');
@@ -915,7 +924,11 @@ test('격납고 — SP 가 모자라면 보급 요청이 잠긴다', async ({ pa
   await page.locator('.lo-frame').click();
 
   const hangar = page.locator('#hangar');
+  // 40 SP 로는 아무것도 못 산다 — 기체 슬롯에서도, 카메라 슬롯에서도
   await expect(hangar.locator('.hg-badge.dim')).toContainText('SP 부족');
+  expect(await hangar.locator('[data-buy]').count()).toBe(0);
+  await hangar.locator('[data-slot="cameras"]').click();
+  await expect(hangar.locator('.hg-badge.dim')).toHaveCount(2); // 컬러 300 / 열화상 1800
   expect(await hangar.locator('[data-buy]').count()).toBe(0);
 });
 
@@ -1004,4 +1017,84 @@ test('데모의 끝 — 실패는 원인과 권고, 그리고 다시 나가라�
   await page.waitForFunction(() => window.__debug.state.screen === 'loadout', null, { timeout: 60_000 });
   // 실패로는 작전이 완수되지 않는다
   await expect(page.locator('#loadout .lo-badge')).toContainText('미완수');
+});
+
+/**
+ * 카메라 = 모듈 (GDD 6.4 사다리 / 6.5 "열화상 구매 → 캠페인 돌파").
+ * 기본 지급은 아날로그 흑백 하나뿐이다 — 컬러·열화상은 SP 로 연다.
+ */
+test('카메라 사다리 — 안 산 모드로는 전환되지 않는다', async ({ page }) => {
+  test.setTimeout(300_000);
+  await seedProfile(page, { introSeen: true }); // 기본 모듈 = 흑백만
+  await enterFlight(page);
+  expect(await page.evaluate(() => window.__debug.flight.camMode())).toBe('bw');
+
+  // 전환 버튼을 눌러도 살 게 없으면 제자리다
+  await page.locator('.hud-btn[data-c="cam"]').click();
+  expect(await page.evaluate(() => window.__debug.flight.camMode())).toBe('bw');
+  await expect(page.locator('#hud')).toContainText('BW');
+});
+
+test('격납고 — 아날로그 컬러를 사면 비행 중 전환 칸이 하나 는다', async ({ page }) => {
+  test.setTimeout(300_000);
+  await seedProfile(page, { introSeen: true, sp: 320 });
+  await page.locator('#title').click();
+  await page.locator('.lo-frame').click();
+
+  // 카메라 슬롯이 격납고에 있다 — 열화상은 1,800 이라 아직 잠겨 있어야 한다
+  const hangar = page.locator('#hangar');
+  await hangar.locator('[data-slot="cameras"]').click();
+  // 열화상은 1,800(05 문서 4.3 T3)이라 320 SP 로는 잠겨 있어야 한다
+  const thermalCard = hangar.locator('.hg-card').filter({ hasText: '열화상' });
+  await expect(thermalCard.locator('.hg-badge.dim')).toContainText('SP 부족');
+  await page.screenshot({ path: 'tests/__screenshots__/demo-hangar-optics.png' });
+
+  await hangar.locator('[data-buy="cam.analogColor"]').click();
+  await expect(hangar.locator('.hg-head .lo-sp')).toContainText('SP 20');
+
+  // 산 뒤 출격 — 이제 흑백 ↔ 컬러가 돈다
+  await page.locator('.hg-back').click();
+  await page.locator('.lo-sortie').click();
+  await page.locator('.br-panel').click();
+  await page.locator('.br-launch').click();
+  await page.waitForFunction(() => window.__debug?.ready === true, null, { timeout: 120_000 });
+  expect(await page.evaluate(() => window.__debug.flight.camMode())).toBe('bw');
+  await page.locator('.hud-btn[data-c="cam"]').click();
+  expect(await page.evaluate(() => window.__debug.flight.camMode())).toBe('color');
+  await page.locator('.hud-btn[data-c="cam"]').click();
+  expect(await page.evaluate(() => window.__debug.flight.camMode())).toBe('bw'); // 열화상은 없다
+});
+
+/** 자폭 드론의 출격 유지비 — T2 를 몰면 매 출격 기체값의 5% 가 빠진다 (05 문서 4.3) */
+test('기체 손실 페널티가 디브리핑에 뜬다', async ({ page }) => {
+  test.setTimeout(300_000);
+  await seedProfile(page, {
+    introSeen: true,
+    sp: 0,
+    ownedFrames: ['frame.sparrow7', 'frame.hornet10'],
+    loadout: { frame: 'frame.hornet10', camera: 'cam.analogBw', power: 'pwr.basic', link: 'lnk.basic', payloads: [] },
+    campaign: { 'm2-1': { stars: 1, cleared: true } }, // 첫 실적 보너스 제외
+  });
+  await enterFlight(page);
+  await page.evaluate(() => {
+    window.__debug.flight.setWindCalm();
+    window.__debug.flight.respawn();
+  });
+  await page.evaluate(async () => {
+    const t = window.__debug.flight.telemetry();
+    let z = -214;
+    t.pos.set(120, t.pos.y + (2.5 - t.agl), z);
+    t.yaw = 0;
+    const deadline = window.__debug.frame + 60;
+    while (window.__debug.frame < deadline && !window.__debug.flight.crashed()) {
+      z -= 2;
+      t.pos.set(120, t.pos.y, z);
+      t.vel.set(0, 0, -14);
+      await new Promise((r) => requestAnimationFrame(r));
+    }
+  });
+  await page.waitForFunction(() => window.__debug.state.screen === 'debrief', null, { timeout: 30_000 });
+  const debrief = page.locator('#debrief');
+  await expect(debrief).toContainText('기체 손실 -40 SP');
+  await expect(debrief).toContainText('+40 SP'); // 40 + 40 − 40
 });

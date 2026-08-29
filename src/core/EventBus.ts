@@ -27,7 +27,6 @@ export interface GameEvents {
   'strike:hit': { distance: number; speed: number; targetsLeft: number };
   'mission:started': { missionId: string };
   'mission:ended': { missionId: string; cleared: boolean };
-  'sp:changed': { sp: number; delta: number };
   'locale:changed': { locale: string };
 }
 

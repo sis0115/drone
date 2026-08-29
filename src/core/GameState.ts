@@ -46,6 +46,8 @@ export interface DebriefData {
   spConfirm: number;
   /** 최초 완수 보너스 — 프롤로그의 약속을 회수한다. 재도전에는 0 */
   spFirstClear: number;
+  /** 기체 손실 페널티 (05 문서 4.3, 기체가의 5%). 양수 크기로 담고 표기에서 뺀다 */
+  spLoss: number;
   /** 이번 완수가 이 미션의 **최초** 완수인가 — 데모 종료(아웃트로) 분기 */
   firstClear: boolean;
   /** 지급 후 잔액 — 디브리핑 화면이 카운트 표기에 쓴다 */
@@ -59,7 +61,8 @@ export type CamMode = 'color' | 'thermal' | 'bw';
 export class GameState {
   screen: ScreenName = 'link';
   flightMode: FlightMode = 'arcade';
-  camMode: CamMode = 'color';
+  /** 기본 지급 모듈이 `cam.analogBw` 하나다 (05 문서 3장) — 컬러부터는 사서 연다 */
+  camMode: CamMode = 'bw';
   /** 거리·LOS·재밍이 수렴하는 단일 변수 (07 문서 2.2). 1 = 완전, 0 = 두절. */
   signalQuality = 1;
   paused = false;

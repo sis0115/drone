@@ -1,5 +1,11 @@
 import type { MissionDef } from '@/data/missions';
-import { CONFIRM_MULTIPLIER, FIRST_CLEAR_BONUS, SP_VALUE, TIER_MULTIPLIER } from '@/data/economy';
+import {
+  CONFIRM_MULTIPLIER,
+  FIRST_CLEAR_BONUS,
+  LOSS_PENALTY_RATE,
+  SP_VALUE,
+  TIER_MULTIPLIER,
+} from '@/data/economy';
 import type { CrashReason } from '@/drone/FlightModel';
 import type { DebriefData, ThreatCauseDetail } from '@/core/GameState';
 
@@ -44,10 +50,17 @@ export class MissionRunner {
    * 출격 종료. 자폭 드론이라 모든 출격은 기체 손실로 끝난다 —
    * 성공이란 "죽기 전에 목표를 채웠는가"다.
    *
-   * `alreadyCleared` 는 **호출자(프로필을 아는 쪽)** 가 알려 준다 — 러너가 세이브를
-   * 직접 읽으면 미션 로직이 저장 스키마에 묶인다. 최초 완수에만 보너스가 붙는다.
+   * 옵션은 **호출자(프로필을 아는 쪽)** 가 채운다 — 러너가 세이브를 직접 읽으면
+   * 미션 로직이 저장 스키마에 묶인다.
+   * - `alreadyCleared`: 최초 완수에만 보너스가 붙는다
+   * - `framePriceSp`: 손실 페널티의 기준가. 기본 지급 기체(0)는 페널티도 0
    */
-  finish(reason: CrashReason, flightSec: number, alreadyCleared = false): DebriefData {
+  finish(
+    reason: CrashReason,
+    flightSec: number,
+    opts: { alreadyCleared?: boolean; framePriceSp?: number } = {},
+  ): DebriefData {
+    const { alreadyCleared = false, framePriceSp = 0 } = opts;
     const cleared = this.kills >= this.def.destroyGoal;
     const firstClear = cleared && !alreadyCleared;
     // SP 정산 (05 문서 4.1/4.3.2): 격파 × 표적 가치 × 차수 배율.
@@ -56,6 +69,8 @@ export class MissionRunner {
     const spConfirm = Math.round(spBase * (CONFIRM_MULTIPLIER - 1));
     // 첫 실적 보너스 — 프롤로그의 약속을 회수한다. 반복 파밍으로는 안 나온다.
     const spFirstClear = firstClear ? FIRST_CLEAR_BONUS : 0;
+    // 기체 손실 — 자폭이라 매 출격 발생한다. 이게 T2+ 기체의 출격 유지비다.
+    const spLoss = Math.round(framePriceSp * LOSS_PENALTY_RATE);
     this.result = {
       missionId: this.def.id,
       titleKey: this.def.titleKey,
@@ -69,7 +84,9 @@ export class MissionRunner {
       spBase,
       spConfirm,
       spFirstClear,
-      spEarned: spBase + spConfirm + spFirstClear,
+      spLoss,
+      // 정산이 음수로 내려가지는 않는다 — 출격했다고 빚을 지지는 않는다(05 문서에 차감만 있다)
+      spEarned: Math.max(0, spBase + spConfirm + spFirstClear - spLoss),
       spTotal: 0, // 지급 주체(FlightScreen)가 프로필 반영 후 채운다
     };
     return this.result;

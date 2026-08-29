@@ -49,6 +49,8 @@ export class DebriefScreen implements Screen {
           d.spFirstClear > 0
             ? `<div class="db-sub amb">${fmt('debrief.spFirst', d.spFirstClear)}</div>`
             : '',
+          // 자폭 드론의 출격 유지비 — 기본 지급 기체(0원)면 줄 자체가 없다
+          d.spLoss > 0 ? `<div class="db-sub red">${fmt('debrief.spLoss', d.spLoss)}</div>` : '',
         ].join('')
       : '';
     const lesson = d?.cleared ? `<div class="db-line">${t('story.ch1.radio.confirm_teach')}</div>` : '';

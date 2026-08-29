@@ -37,12 +37,37 @@ test('자폭 돌입으로 목표를 채우면 완수다 — 기체 손실은 성
 test('재도전에는 첫 실적 보너스가 없다 — 반복 파밍으로 나오는 값이 아니다', () => {
   const runner = new MissionRunner(M2_1);
   runner.onStrike();
-  const d = runner.finish('자폭 돌입', 30, true); // 이미 완수한 미션
+  const d = runner.finish('자폭 돌입', 30, { alreadyCleared: true }); // 이미 완수한 미션
   expect(d.cleared).toBe(true);
   expect(d.firstClear).toBe(false);
   expect(d.spFirstClear).toBe(0);
   // 격파 40 + 확인 40 — 확인 킬은 매번 유효하다
   expect(d.spEarned).toBe(80);
+});
+
+test('기체 손실 페널티 — T2 를 몰면 출격마다 가격의 5% 가 빠진다 (05 문서 4.3)', () => {
+  const runner = new MissionRunner(M2_1);
+  runner.onStrike();
+  // 호넷-10 800 SP → 손실 40. 자폭 드론이라 매 출격 발생하는 유지비다.
+  const d = runner.finish('자폭 돌입', 30, { alreadyCleared: true, framePriceSp: 800 });
+  expect(d.spLoss).toBe(40);
+  expect(d.spEarned).toBe(40); // 격파 40 + 확인 40 − 손실 40
+});
+
+test('기본 지급 기체(가격 0)에는 손실 페널티가 없다', () => {
+  const runner = new MissionRunner(M2_1);
+  runner.onStrike();
+  const d = runner.finish('자폭 돌입', 30, { alreadyCleared: true, framePriceSp: 0 });
+  expect(d.spLoss).toBe(0);
+  expect(d.spEarned).toBe(80);
+});
+
+test('출격했다고 빚을 지지는 않는다 — 정산은 0 밑으로 안 내려간다', () => {
+  const runner = new MissionRunner(M2_1);
+  // 격파 0 + T2 손실: 문서에 차감만 있고 마이너스 잔액 개념은 없다
+  const d = runner.finish('피격', 12, { framePriceSp: 800 });
+  expect(d.spLoss).toBe(40);
+  expect(d.spEarned).toBe(0);
 });
 
 test('격파가 없으면 SP 도 없다 — 참가상 금지', () => {

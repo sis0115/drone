@@ -17,11 +17,12 @@ import { buildThreats } from '@/mission/buildThreats';
 import { MissionRunner } from '@/mission/MissionRunner';
 import { M2_1 } from '@/data/missions';
 import { frameById } from '@/data/frames';
+import { camModesOwned } from '@/data/modules';
 import { destroyTarget, updateTargets } from '@/world/Targets';
 import { findImpact } from '@/mission/Strike';
 import { AoLimit, type AoState } from '@/mission/AoLimit';
 import { save } from '@/core/Save';
-import { CAM_MODE_LABEL, THERMAL_UNIFORM, applyCameraMode, nextCamMode } from '@/world/CameraMode';
+import { CAM_MODE_LABEL, THERMAL_UNIFORM, applyCameraMode } from '@/world/CameraMode';
 import { PadOverlay } from '@/ui/PadOverlay';
 import type { InputFrame } from '@/input/InputSource';
 import { t as tr } from '@/i18n';
@@ -115,6 +116,9 @@ export class FlightScreen implements Screen {
       if (code === 'KeyC') this.cycleCamMode();
       if (code === 'KeyM') this.setMode(this.flight.mode === 'arcade' ? 'pro' : 'arcade');
     });
+    // 안 산 카메라로 출격해 있으면 되돌린다 — 구 세이브에서 열화상이 켜진 채로 넘어온다
+    const ownedModes = camModesOwned(ctx.state.profile?.ownedModules ?? []);
+    if (!ownedModes.includes(ctx.state.camMode)) ctx.state.camMode = ownedModes[0];
     applyCameraMode(this.world, ctx.state.camMode);
 
     // 가상 패드 — 폰에서 이게 없으면 조작 자체가 불가능하다 (GDD 7장).
@@ -351,7 +355,11 @@ export class FlightScreen implements Screen {
     const profile = this.ctx.state.profile;
     // 최초 완수 여부는 프로필이 안다 — 러너에 알려 줘야 첫 실적 보너스가 갈린다
     const alreadyCleared = profile?.campaign[this.mission.def.id]?.cleared ?? false;
-    const debrief = this.mission.finish(reason, this.elapsed, alreadyCleared);
+    const debrief = this.mission.finish(reason, this.elapsed, {
+      alreadyCleared,
+      // 자폭이라 기체는 매번 잃는다 — 몰고 나간 기체의 가격이 유지비를 정한다
+      framePriceSp: frameById(profile?.loadout.frame ?? 'frame.sparrow7').priceSp,
+    });
     // SP 지급 + 전적 + 저장 — 저장 시점은 "디브리핑 확정"이다 (05 문서 1장)
     if (profile) {
       profile.sp += debrief.spEarned;
@@ -366,9 +374,6 @@ export class FlightScreen implements Screen {
       }
       debrief.spTotal = profile.sp;
       save(profile);
-      if (debrief.spEarned > 0) {
-        this.ctx.bus.emit('sp:changed', { sp: profile.sp, delta: debrief.spEarned });
-      }
     }
     this.ctx.state.debrief = debrief;
     this.ctx.bus.emit('mission:ended', { missionId: debrief.missionId, cleared: debrief.cleared });
@@ -402,7 +407,10 @@ export class FlightScreen implements Screen {
 
   /** 흑백 → 컬러 → 열화상 순환 (GDD 4장 시야 제약 / 06 문서 1.1). */
   cycleCamMode(): void {
-    this.setCamMode(nextCamMode(this.ctx.state.camMode));
+    // GDD 6.4/6.5: 카메라는 사다리다. 산 칸만 돈다 — 안 산 모드로는 넘어가지 않는다
+    const owned = camModesOwned(this.ctx.state.profile?.ownedModules ?? []);
+    const i = owned.indexOf(this.ctx.state.camMode);
+    this.setCamMode(owned[(i + 1) % owned.length]);
   }
 
   setCamMode(mode: CamMode): void {
