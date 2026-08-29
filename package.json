@@ -21,7 +21,8 @@
     "test": "playwright test",
     "verify": "npm run typecheck && npm run build && npm run harness && npm run perf && npm run scene && npm run test",
     "shots": "SHOTS=1 playwright test tests/shots.spec.ts",
-    "play": "PLAY=1 playwright test tests/playthrough.spec.ts"
+    "play": "PLAY=1 playwright test tests/playthrough.spec.ts",
+    "session": "PLAY=1 playwright test tests/session.spec.ts"
   },
   "dependencies": {
     "three": "^0.180.0"
