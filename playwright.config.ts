@@ -32,7 +32,7 @@ export default defineConfig({
   testIgnore:
     process.env.SHOTS || process.env.PLAY
       ? []
-      : ['**/shots.spec.ts', '**/playthrough.spec.ts', '**/session.spec.ts'],
+      : ['**/shots.spec.ts', '**/playthrough.spec.ts', '**/session.spec.ts', '**/design.spec.ts'],
   // T2 이후 씬이 무거워졌다. 이 컨테이너는 소프트웨어 렌더(SwiftShader)라
   // 한 프레임에 1초 이상 걸려 30초로는 부트조차 못 끝낸다. 실기 성능과 무관한 값이다.
   timeout: 120_000,

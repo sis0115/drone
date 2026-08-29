@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { fbm, random, rnd } from './noise';
 import { grassTex } from './textures';
 import { terrainH } from './Terrain';
+import { grassDensity, sampleByDensity, vegDensity } from './Landcover';
 import { buildInstanced, type InstanceSpec } from './Instancing';
 import type { ThermalRegistry } from './ThermalRegistry';
 import type { AoCollector } from './Ao';
@@ -15,7 +16,8 @@ import { HEAT } from '@/data/thermal';
 // 아트 패스 1: 채도를 뺀 회록. 선명한 초록은 "살아 있는 여름"이라 전장 팔레트에서 튄다.
 const CROWNS = [0x4c5a3a, 0x445236, 0x555f3e, 0x5e6042, 0x414f38, 0x666747, 0x525c3a];
 const BARK = [0x4d3d2a, 0x574734, 0x413425, 0x5f5140];
-const GRASS_N = 18000;
+/** 지형 해상도(SEG 150)에 삼각형을 내주고 줄였다 — 원경의 풀은 안개에 먹혀 안 보인다. */
+const GRASS_N = 13000;
 
 export interface VegetationHandles {
   grass: THREE.InstancedMesh;
@@ -75,8 +77,10 @@ function buildGrass(
   const col = new THREE.Color();
   let idx = 0;
   for (let i = 0; i < GRASS_N; i++) {
-    const x = rnd(-460, 460);
-    const z = rnd(-460, 460);
+    // 균일 살포 → 토지 피복 기반(Landcover). 갈아엎은 구획은 성글고 묵밭은 무성하다.
+    const spot = sampleByDensity(rnd, random, grassDensity, 460);
+    if (!spot) continue;
+    const { x, z } = spot;
     if (Math.abs(x - 120) < 9) continue; // 도로 위 제외
     const y = terrainH(x, z);
     const s = rnd(0.6, 1.9);
@@ -150,8 +154,14 @@ function buildBushes(scene: THREE.Scene, registry: ThermalRegistry): THREE.Insta
   const dummy = new THREE.Object3D();
   const col = new THREE.Color();
   for (let i = 0; i < 5200; i++) {
-    const x = rnd(-470, 470);
-    const z = rnd(-470, 470);
+    /**
+     * **밭 안은 비우고 경계에 세운다** (Landcover.vegDensity).
+     * 균일 살포일 때 상공에서 덤불이 노이즈로 읽히던 것의 원인이 배치였다 —
+     * 개수도 삼각형도 그대로고, 자리만 바뀐다.
+     */
+    const spot = sampleByDensity(rnd, random, vegDensity, 470);
+    if (!spot) continue;
+    const { x, z } = spot;
     if (Math.abs(x - 120) < 11) continue;
     const y = terrainH(x, z);
     const dry = fbm(x * 0.01 + 100, z * 0.01 + 100, 3) < 0.42;
@@ -192,6 +202,11 @@ function buildTrees(scene: THREE.Scene, registry: ThermalRegistry, ao: AoCollect
   const makeTree = (px: number, pz: number, kind: 0 | 1 | 2): void => {
     const y = terrainH(px, pz);
     const s = rnd(0.75, 1.6);
+    /**
+     * ⚠️ 밑동에 작은 패치를 겹쳐 "짙은 심"을 만들려다 **하드한 검은 원반**이 찍혔다(실측).
+     * AO 텍스처의 감쇠가 반경에 비례하므로 작게 쓰면 가장자리가 서 버린다.
+     * 접지감은 패치를 더 넣어서가 아니라 **수관 실루엣**으로 푼다.
+     */
     ao.add(px, pz, kind === 2 ? 2.2 : (kind === 1 ? 2.6 : 4.2) * s);
 
     if (kind === 2) {
@@ -213,7 +228,9 @@ function buildTrees(scene: THREE.Scene, registry: ThermalRegistry, ao: AoCollect
     }
 
     const tall = kind === 1;
-    const th = tall ? 11 * s : 7 * s;
+    // 활엽수 줄기를 세웠다(7→8.6). 수관 폭이 줄기 높이와 같으면 **버섯**이 된다 —
+    // 줄기가 보일수록 나무로 읽힌다.
+    const th = tall ? 11 * s : 8.6 * s;
     trunks.push({
       p: [px, y + th / 2, pz],
       r: [0, rnd(0, 6.28), 0],
@@ -221,16 +238,34 @@ function buildTrees(scene: THREE.Scene, registry: ThermalRegistry, ao: AoCollect
       c: BARK[(random() * BARK.length) | 0],
     });
     const cc = CROWNS[(random() * CROWNS.length) | 0];
-    const nBlob = tall ? 4 : 3 + ((random() * 3) | 0);
+    /**
+     * 수관 — **버섯을 고친다** (아트 패스 4).
+     *
+     * 이전 배치는 덩어리를 수평으로 ±2.1s 흩고 높이를 줄기 끝(th 의 0.82~1.28)에만 뒀다.
+     * 결과는 가는 기둥 위에 얹힌 **납작한 원반**, 즉 저폴리 에셋의 전형이었다(실측).
+     * 셋을 바꾼다:
+     * 1. **중심 덩어리 하나를 크게**, 나머지를 작게 — 실루엣이 울퉁불퉁해진다
+     * 2. 수평 산포를 줄이고 **수직으로 흩는다** — 수관은 원반이 아니라 덩어리다
+     * 3. 수관을 줄기 쪽으로 **내려** 겹친다 — 갓과 기둥 사이 틈이 "에셋"으로 읽힌다
+     */
+    const nBlob = tall ? 5 : 4 + ((random() * 3) | 0);
     for (let b = 0; b < nBlob; b++) {
-      const rad = tall ? rnd(1.1, 1.8) * s : rnd(1.6, 2.9) * s;
-      const ox = tall ? rnd(-0.5, 0.5) * s : rnd(-2.1, 2.1) * s;
-      const oz = tall ? rnd(-0.5, 0.5) * s : rnd(-2.1, 2.1) * s;
-      const oy = tall ? th * (0.45 + b * 0.16) : th * rnd(0.82, 1.28);
+      const core = b === 0;
+      // 수관 폭을 줄인다 — 지름이 줄기 높이의 절반쯤이어야 실루엣이 나무다
+      const rad = tall
+        ? (core ? rnd(1.3, 1.8) : rnd(0.8, 1.3)) * s
+        : (core ? rnd(1.7, 2.4) : rnd(0.85, 1.6)) * s;
+      const spread = tall ? 0.4 : core ? 0.3 : 1.15;
+      const ox = rnd(-spread, spread) * s;
+      const oz = rnd(-spread, spread) * s;
+      const oy = tall
+        ? th * (0.42 + b * 0.15)
+        : th * (core ? 0.92 : rnd(0.76, 1.2)); // 위아래로 흩어 덩어리를 만든다
       crowns.push({
         p: [px + ox, y + oy, pz + oz],
         r: [rnd(0, 3), rnd(0, 3), rnd(0, 3)],
-        s: [rad * rnd(0.85, 1.2), rad * rnd(0.7, 1.05), rad * rnd(0.85, 1.2)],
+        // 세로로도 부풀린다 — y 를 눌러 두면 어떤 각도에서도 원반이다
+        s: [rad * rnd(0.82, 1.15), rad * rnd(0.86, 1.32), rad * rnd(0.82, 1.15)],
         c: cc,
       });
     }

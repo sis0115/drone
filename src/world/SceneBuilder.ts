@@ -10,6 +10,7 @@ import { buildProps, type PropHandles } from './Props';
 import { buildTargets, type Target } from './Targets';
 import { AoCollector } from './Ao';
 import { buildScars } from './Scars';
+import { buildDistantRidges, buildFarTreeline } from './Distance';
 import { seedWorld } from './noise';
 import type { Obstacle } from './Props';
 
@@ -57,6 +58,9 @@ export function buildWorld(options: { seed?: number } = {}): World {
 
   const terrain = buildTerrain(scene, registry);
   addHorizonSkirt(scene, registry);
+  // 원경 — 스커트 위에 형태를 얹는다. 지평선이 평평하면 씬이 '평면 위 소품'으로 읽힌다.
+  buildDistantRidges(scene, registry);
+  buildFarTreeline(scene, registry);
 
   // AO 패치는 나무·건물이 각자 쌓아 두고 **마지막에 한 번** 1콜로 굽는다.
   const ao = new AoCollector();

@@ -33,37 +33,35 @@ export function groundTex(sz: number): THREE.CanvasTexture {
   for (let j = 0; j < sz; j++)
     for (let i = 0; i < sz; i++) {
       const k = (j * sz + i) * 4;
-      const patch = fbm(i * q * 0.01, j * q * 0.01, 3); // 저주파: 마른/녹색 구역
+      // ⚠️ 이 텍스처는 26.7m 마다 반복된다(repeat 60 / TER 1600). 그러므로 여기서
+      // "필지"나 "구역" 같은 **대스케일 구조를 그리면 안 된다** — 8m 짜리 얼룩이
+      // 60번 반복되며 지면 전체를 노이즈로 만든다(실측: 상공에서 농지가 안 읽힘).
+      // 대스케일(필지 색조·경계)은 **정점색**(Terrain.ts)이 맡는다. 여기는 흙의 질감만.
+      const patch = fbm(i * q * 0.09, j * q * 0.09, 3); // 흙덩이 얼룩 (≈0.5m)
       const det = fbm(i * q * 0.16, j * q * 0.16, 4); // 중주파: 덤불 덩어리
       const fine = hash2(i * 3.1, j * 2.7); // 고주파: 잎 알갱이
-      const t = Math.max(0, Math.min(1, (patch - 0.38) * 3.2));
+      // 마른 흙 ↔ 풀기 — 진폭을 줄인다. 큰 명암은 정점색이 만들고 여기는 결만 낸다.
+      const t = Math.max(0, Math.min(1, (patch - 0.42) * 2.2));
       let r = DRY[0] * (1 - t) + GRN[0] * t;
       let g = DRY[1] * (1 - t) + GRN[1] * t;
       let b = DRY[2] * (1 - t) + GRN[2] * t;
       /**
-       * 경작지 패치워크 — 항공에서 이 땅을 "농지"로 읽게 하는 것은 필지 경계다.
-       * 저주파 노이즈를 계단화해 필지마다 명도를 살짝 다르게, 경계에는 어두운 골(농로/도랑).
+       * 쟁기 이랑 — 주기 ≈0.6m. 이건 진짜로 이 스케일에 있는 물건이라 반복돼도 맞다.
+       * 골에 그림자가 지고 마루가 마른 흙으로 튀는 비대칭이 "갈아엎은 땅"으로 읽힌다.
        */
-      const field = fbm(i * q * 0.006 + 77, j * q * 0.006 + 77, 2);
-      const cell = Math.floor(field * 7);
-      const fieldTone = 0.9 + (hash2(cell * 13.7, cell * 7.1) - 0.5) * 0.22;
-      r *= fieldTone;
-      g *= fieldTone;
-      b *= fieldTone;
-      const boundary = Math.abs(field * 7 - cell - 0.5);
-      if (boundary > 0.46) {
-        r *= 0.72;
-        g *= 0.72;
-        b *= 0.7;
-      }
-      // 쟁기 이랑 — 일부 필지에만, 한 방향 줄무늬. 있는 밭과 없는 밭이 섞여야 산다
-      if (hash2(cell * 3.3, 9.1) > 0.5) {
-        const rowDir = (hash2(cell * 5.9, 1.7) > 0.5 ? i + j * 0.35 : j - i * 0.28) * q;
-        const row = Math.sin(rowDir * 0.55) * 0.5 + 0.5;
-        const amp = 1 + (row - 0.5) * 0.12;
-        r *= amp;
-        g *= amp;
-        b *= amp;
+      const rowDir = (i + j * 0.32) * q;
+      const row = Math.sin(rowDir * 0.55);
+      const furrow = 1 + row * 0.085 - Math.max(0, -row) * 0.05;
+      r *= furrow;
+      g *= furrow;
+      b *= furrow * 0.98;
+      // 흙덩이·돌 — 이랑 위에 얹히는 알갱이
+      const clod = hash2(i * 0.7 + 11, j * 0.7 + 3);
+      if (clod > 0.985) {
+        const v = 1.12 + (clod - 0.985) * 6;
+        r *= v;
+        g *= v;
+        b *= v * 0.96;
       }
       const hi = (det - 0.5) * 0.55 + (fine - 0.5) * 0.42; // 밝기 요동
       r *= 1 + hi;

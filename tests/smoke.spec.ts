@@ -860,7 +860,10 @@ test('데모 — HUD 목표와 무전 안내가 첫 판을 이끈다', async ({ 
     const deadline = window.__debug.frame + 60;
     while (window.__debug.frame < deadline && !window.__debug.flight.crashed()) {
       z -= 2;
-      t.pos.set(120, t.pos.y, z);
+      // **지형을 따라간다.** 고도를 고정한 채 z 만 밀면 능선(아트 패스 4)에서 표적과의
+      // 높이차가 벌어져 HIT_RADIUS 를 벗어난다 — 이 테스트만 항법 무전 3.25초를
+      // 먼저 굴려서 종대가 30m 더 가 있기 때문에 여유가 없다.
+      t.pos.set(120, t.pos.y + (2.5 - t.agl), z);
       t.vel.set(0, 0, -14);
       await new Promise((r) => requestAnimationFrame(r));
     }
