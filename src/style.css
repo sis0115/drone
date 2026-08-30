@@ -28,6 +28,18 @@ html, body {
   -webkit-user-select: none;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
+  /**
+   * **브라우저 제스처를 끈다.** 두 엄지로 스틱을 잡으면 브라우저가 그걸 핀치로 읽어
+   * 화면이 줌되거나 스크롤된다(실기 증상). `user-scalable=no` 만으로는 부족하다 —
+   * iOS 사파리는 그 값을 무시한다.
+   *
+   * `touch-action` 이 주력인 이유: 네이티브 제스처가 한번 시작되면 포인터 이벤트가
+   * `cancelable: false` 가 되어 `preventDefault()` 로 되돌릴 수 없다. **시작 자체를 막아야 한다.**
+   * 스크롤이 필요한 패널만 아래에서 `pan-y` 로 되돌려 준다.
+   */
+  touch-action: none;
+  overscroll-behavior: none; /* 당겨서 새로고침·고무줄 스크롤 차단 */
+  -webkit-touch-callout: none; /* 길게 눌러 뜨는 iOS 콜아웃 */
 }
 
 #app { position: fixed; inset: 0; }
@@ -562,6 +574,18 @@ html, body {
   white-space: nowrap;
 }
 .hud-radio.show { opacity: 1; }
+
+/**
+ * 스크롤이 필요한 패널만 세로 팬을 되돌린다.
+ * `html/body` 에서 `touch-action: none` 으로 전부 껐기 때문에, 이걸 안 해 주면
+ * 내용이 넘치는 패널(격납고·완수 디브리핑)을 손가락으로 못 내린다.
+ */
+.hg-panel,
+.db-panel,
+.ou-panel,
+.st-panel {
+  touch-action: pan-y;
+}
 
 /* ── 타이틀 (04 문서 3.1) — 무신호 노이즈 위 로고 ── */
 #title {

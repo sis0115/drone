@@ -1195,3 +1195,75 @@ test('기체 손실 페널티가 디브리핑에 뜬다', async ({ page }) => {
   await expect(debrief).toContainText('기체 손실 -40 SP');
   await expect(debrief).toContainText('+40 SP'); // 40 + 40 − 40
 });
+
+/**
+ * 웹 제스처 차단 — 두 엄지로 스틱을 잡으면 브라우저가 그걸 **핀치**로 읽어
+ * 화면이 줌되거나 스크롤되던 실기 증상(2026-08-27 보고).
+ *
+ * 브라우저의 네이티브 제스처 자체는 헤드리스에서 재현이 안 된다. 대신 **막는 장치가
+ * 실제로 걸려 있는지**를 잠근다 — 이게 빠지면 실기에서 곧바로 재발한다.
+ */
+test('브라우저 제스처가 꺼져 있다 — 핀치 줌·당겨서 새로고침 차단', async ({ page }) => {
+  await page.goto('/');
+  const css = await page.evaluate(() => {
+    const b = getComputedStyle(document.body);
+    return {
+      touchAction: b.touchAction,
+      overscroll: b.overscrollBehaviorY || b.overscrollBehavior,
+      viewport: document.querySelector('meta[name=viewport]')?.getAttribute('content') ?? '',
+    };
+  });
+  // 주력 방어 — 네이티브 제스처가 시작되면 preventDefault 로는 못 되돌린다
+  expect(css.touchAction, 'touch-action 이 꺼져 있지 않다 — 핀치·팬이 살아 있다').toBe('none');
+  expect(css.overscroll, '당겨서 새로고침·고무줄 스크롤이 살아 있다').toBe('none');
+  expect(css.viewport).toContain('user-scalable=no');
+
+  // 스크롤이 필요한 패널은 되돌려 놔야 한다 — 안 그러면 격납고를 손가락으로 못 내린다
+  await page.evaluate(() => localStorage.setItem('slfpv.save.v1', JSON.stringify({ schemaVersion: 1, introSeen: true, sp: 900 })));
+  await page.reload();
+  await page.locator('#title').click();
+  await page.locator('.lo-frame').click();
+  const panel = await page.evaluate(
+    () => getComputedStyle(document.querySelector('.hg-panel')!).touchAction,
+  );
+  expect(panel, '격납고 패널을 손가락으로 못 내린다').toBe('pan-y');
+});
+
+/** 두 엄지 동시 조작 — 스틱 둘이 서로를 끊지 않는다(포인터 ID 별로 추적된다) */
+test('양손 조작 — 두 손가락이 두 스틱을 동시에 움직인다', async ({ page }) => {
+  test.setTimeout(300_000);
+  await enterFlight(page);
+
+  const axes = await page.evaluate(async () => {
+    const send = (type: string, id: number, x: number, y: number) =>
+      window.dispatchEvent(
+        new PointerEvent(type, { pointerId: id, clientX: x, clientY: y, bubbles: true, cancelable: true }),
+      );
+    /**
+     * **스틱의 실제 중심**을 눌러야 한다. 패드는 손가락이 닿은 자리가 아니라
+     * 스틱 요소의 중심을 원점으로 값을 계산한다 — 화면 20/80% 를 찍으면
+     * 중심에서 한참 벗어난 채로 시작해 부호가 뒤집힌다(이 테스트를 처음 쓸 때 겪음).
+     */
+    const center = (side: string) => {
+      const r = document.querySelector(`.stick[data-side="${side}"]`)!.getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    };
+    const L = center('left');
+    const R = center('right');
+    // 왼쪽 스틱(스로틀/요) 과 오른쪽 스틱(피치/롤) 을 **동시에** 잡는다
+    send('pointerdown', 1, L.x, L.y);
+    send('pointerdown', 2, R.x, R.y);
+    // 왼손은 위로(상승), 오른손은 오른쪽으로(롤)
+    send('pointermove', 1, L.x, L.y - 45);
+    send('pointermove', 2, R.x + 45, R.y);
+    await new Promise((r) => requestAnimationFrame(r));
+    const f = window.__debug.state.input as Record<string, number>;
+    const out = { throttle: f.throttle, roll: f.roll };
+    send('pointerup', 1, L.x, L.y - 45);
+    send('pointerup', 2, R.x + 45, R.y);
+    return out;
+  });
+
+  expect(axes.throttle, '왼쪽 스틱이 안 먹는다 — 오른쪽이 덮어썼을 수 있다').toBeGreaterThan(0.2);
+  expect(axes.roll, '오른쪽 스틱이 안 먹는다 — 왼쪽이 덮어썼을 수 있다').toBeGreaterThan(0.2);
+});

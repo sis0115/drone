@@ -23,6 +23,15 @@ export interface Platform {
   /** 가로 고정 (GDD 7장). 웹에서는 지원 브라우저에서만 걸린다. */
   lockLandscape(): Promise<void>;
 
+  /**
+   * 브라우저의 기본 터치 제스처를 막는다 — 핀치 줌·더블탭 줌·당겨서 새로고침·길게 눌러 메뉴.
+   *
+   * 두 엄지로 스틱을 잡는 순간 브라우저는 그걸 **핀치**로 읽는다. 게임 입력이
+   * 브라우저 제스처와 싸우는 것은 웹 빌드에서만 생기는 문제라 여기(플랫폼)에 둔다.
+   * 네이티브 래핑(Capacitor)에서는 웹뷰 설정이 대신하므로 빈 구현이면 된다.
+   */
+  suppressBrowserGestures(): void;
+
   /** 인게임 중 화면이 꺼지지 않게. */
   keepAwake(on: boolean): Promise<void>;
 

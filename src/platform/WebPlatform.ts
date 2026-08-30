@@ -53,6 +53,23 @@ export class WebPlatform implements Platform {
     }
   }
 
+  /**
+   * 브라우저 제스처 차단. **세 겹으로 막는다** — 하나만으로는 다 안 막힌다:
+   *
+   * 1. `touch-action: none` (CSS) — 표준이자 주력. 브라우저가 팬·줌을 아예 시작하지 않는다.
+   *    한번 네이티브 제스처가 시작되면 포인터 이벤트는 `cancelable: false` 가 되어
+   *    `preventDefault()` 로는 **막을 수 없다.** 그래서 선언적으로 미리 꺼야 한다.
+   * 2. `gesturestart` 등 (iOS) — iOS 사파리는 `user-scalable=no` 를 **무시한다**(iOS 10~).
+   *    핀치 줌은 이 비표준 이벤트를 막아야 확실히 죽는다.
+   * 3. `contextmenu` — 길게 누르면 뜨는 메뉴. 스틱을 오래 붙잡고 있으면 튀어나온다.
+   */
+  suppressBrowserGestures(): void {
+    for (const type of ['gesturestart', 'gesturechange', 'gestureend']) {
+      document.addEventListener(type, (e) => e.preventDefault(), { passive: false });
+    }
+    document.addEventListener('contextmenu', (e) => e.preventDefault());
+  }
+
   async lockLandscape(): Promise<void> {
     try {
       const orientation = screen.orientation as ScreenOrientation & {

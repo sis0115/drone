@@ -46,6 +46,8 @@ export class App {
     );
     // 가로 고정은 브라우저가 거부할 수 있다(iOS 는 아예 없다) — 안내 한 장을 항상 띄워 둔다
     this.keyboard.onAction = (code) => this.onKeyAction?.(code);
+    // 두 엄지로 스틱을 잡으면 브라우저가 핀치로 읽는다 — 게임 입력이 제스처와 싸우지 않게 먼저 끈다
+    platform().suppressBrowserGestures();
     window.addEventListener('resize', this.onResize);
     this.onResize();
   }
