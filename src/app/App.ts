@@ -10,7 +10,6 @@ import { platform } from '@/platform';
 import { KeyboardInput } from '@/input/KeyboardInput';
 import { TouchInput } from '@/input/TouchInput';
 import { NEUTRAL, type InputFrame, type InputSource } from '@/input/InputSource';
-import { RotateNotice } from '@/ui/RotateNotice';
 import type { AppContext, Screen } from './Screen';
 
 /**
@@ -36,7 +35,7 @@ export class App {
   private lastInput: InputFrame = { ...NEUTRAL };
   private running = false;
 
-  constructor(canvas: HTMLCanvasElement, private readonly overlay: HTMLElement) {
+  constructor(private readonly canvas: HTMLCanvasElement, private readonly overlay: HTMLElement) {
     applyTheme();
     state.profile = load();
     setLocale(state.profile.settings.lang as Locale);
@@ -46,7 +45,6 @@ export class App {
       state.profile.settings.video === 'analog' ? 'analog' : 'standard',
     );
     // 가로 고정은 브라우저가 거부할 수 있다(iOS 는 아예 없다) — 안내 한 장을 항상 띄워 둔다
-    new RotateNotice(overlay);
     this.keyboard.onAction = (code) => this.onKeyAction?.(code);
     window.addEventListener('resize', this.onResize);
     this.onResize();
@@ -141,8 +139,18 @@ export class App {
     };
   }
 
+  /**
+   * **캔버스의 실제 CSS 박스**를 따라간다 (창 크기가 아니라).
+   * 세로 모드에서 영상은 화면 전체가 아니라 상단 16:9 박스만 차지하므로,
+   * 창 크기로 그리기 버퍼를 잡으면 종횡비가 어긋나 화면이 늘어난다.
+   * 레이아웃이 잡힌 뒤에 재야 하므로 한 프레임 미룬다.
+   */
   private readonly onResize = (): void => {
-    this.renderer.resize(window.innerWidth, window.innerHeight);
+    requestAnimationFrame(() => {
+      const w = this.canvas.clientWidth || window.innerWidth;
+      const h = this.canvas.clientHeight || window.innerHeight;
+      this.renderer.resize(w, h);
+    });
   };
 
   dispose(): void {

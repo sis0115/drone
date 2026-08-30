@@ -232,38 +232,125 @@ html, body {
   outline: none;
 }
 
-/* ── 가로 고정 안내 (GDD 7장) ─────────────────────────────
-   orientation.lock 은 iOS 에서 없고 안드로이드도 전체화면일 때만 먹는다.
-   그래서 마지막 방어선은 CSS 다 — JS 없이도, 부팅 전에도 뜬다. */
-#rotate-notice {
-  position: fixed;
-  inset: 0;
-  z-index: 90;
-  display: none;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 1.2em;
-  background: var(--c-bg-base);
-  color: var(--c-text-primary);
-  font-family: var(--font-mono);
-  font-size: clamp(12px, 4vw, 18px);
-  letter-spacing: 0.14em;
-  text-align: center;
-  padding: 2em;
-}
+/* ── 세로 플레이 (지상국 배치) ─────────────────────────────
+   세로로 들면 예전에는 "가로로 돌리세요" 안내로 막았다. 이제는 **플레이된다.**
 
-#rotate-notice .rotate-mark {
-  /* 가로 화면 모양 그대로. 아이콘 파일 없이 글리프 하나로 (에셋 도입 금지) */
-  font-size: 3.2em;
-  line-height: 1;
-  border: 1px solid var(--c-line);
-  padding: 0.1em 0.5em;
-  color: var(--c-text-dim);
-}
+   16:9 영상을 세로 화면에 늘려 채우면 시야가 왜곡된다(FOV 118°가 세로로 늘어난다).
+   그래서 영상은 상단에 **레터박스 16:9 박스**로 두고, 남는 아래를 **조종 데크**로 쓴다 —
+   실제 지상국 앱(영상 위 / 스틱 아래)과 같은 배치이고, 엄지가 영상을 가리지 않는다.
 
+   렌더 종횡비는 CSS 가 정한 박스를 `App.onResize` 가 따라간다(창 크기가 아니라). */
 @media (orientation: portrait) {
-  #rotate-notice { display: flex; }
+  :root {
+    /* 폭 기준 16:9. 화면이 아주 길 때만 46vh 로 잘라 데크 자리를 지킨다 */
+    --feed-h: min(56.25vw, 46vh);
+  }
+
+  #view {
+    inset: auto;
+    left: 0;
+    right: 0;
+    top: var(--sat);
+    width: 100%;
+    height: var(--feed-h);
+  }
+
+  /* HUD·인게임 오버레이는 영상 박스 안에 갇힌다 — OSD 는 영상 위에 있어야 OSD 다 */
+  #hud,
+  #ingame {
+    inset: auto;
+    left: 0;
+    right: 0;
+    top: var(--sat);
+    height: var(--feed-h);
+  }
+
+  /**
+   * **계기는 데크로 내린다.** 세로에서 영상 박스는 232px 밖에 안 되고, 그 안에 코너 5개를
+   * 욱여넣으면 글자가 FPV 베젤(배럴 왜곡 가장자리)에 걸려 읽히지도 않고 영상도 가린다.
+   * 실제 지상국이 그렇듯 **영상 위에는 조준선·표적 마커만** 남기고 숫자는 아래 판으로 옮긴다.
+   *
+   * `fixed` 인 이유는 `#pads` 와 같다 — 부모(`#hud`)가 영상 박스에 묶여 있어 밖으로 못 나간다.
+   * 조준선·표적·위협 SVG 오버레이는 **그대로 둔다**: 3D→2D 투영이 영상 박스 크기에 매여 있다.
+   */
+  .hud-cell {
+    position: fixed;
+    font-size: 13px;
+    line-height: 1.45;
+    text-shadow: none;
+  }
+  .hud-tl { top: calc(var(--sat) + var(--feed-h) + 14px); left: calc(12px + var(--sal)); }
+  .hud-tr {
+    top: calc(var(--sat) + var(--feed-h) + 14px);
+    right: calc(12px + var(--sar));
+  }
+  .hud-mr {
+    top: calc(var(--sat) + var(--feed-h) + 92px);
+    right: calc(12px + var(--sar));
+  }
+  .hud-bl {
+    top: calc(var(--sat) + var(--feed-h) + 92px);
+    bottom: auto;
+    left: calc(12px + var(--sal));
+  }
+  .hud-br {
+    top: calc(var(--sat) + var(--feed-h) + 168px);
+    bottom: auto;
+    right: calc(12px + var(--sar));
+  }
+
+  /**
+   * 무전은 데크 **가운데 빈자리**로. 계기 줄과 같은 높이에 두면 빌드 스탬프와 겹치고,
+   * 영상 위에 얹으면 좁은 화면을 다 가린다. 여기가 이 여백의 쓸모다.
+   */
+  .hud-radio {
+    position: fixed;
+    bottom: auto;
+    top: calc(var(--sat) + var(--feed-h) + 236px);
+    max-width: 86vw;
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+    font-size: 14px;
+  }
+
+  /* 카메라 전환 버튼은 데크 안, 계기 사이 — 세로에서 영상 상단은 엄지가 안 닿는다 */
+  .hud-btn {
+    top: calc(var(--sat) + var(--feed-h) + 44px);
+    left: 50%;
+    bottom: auto;
+    position: fixed;
+    padding: 6px 16px;
+    font-size: 12px;
+  }
+
+  /**
+   * 조종 데크 — 영상 아래 전부. 여기가 엄지의 영역이다.
+   *
+   * ⚠️ `#pads` 는 `#ingame` 의 자식인데 그 부모를 영상 박스 높이로 묶어 뒀다.
+   * `absolute` 로 두면 데크가 부모 밖으로 못 나가 높이가 0 이 된다(실측).
+   * **뷰포트 기준(fixed)** 으로 빼낸다 — 조상에 transform 이 없어 안전하다.
+   */
+  #pads {
+    position: fixed;
+    inset: auto;
+    left: 0;
+    right: 0;
+    top: calc(var(--sat) + var(--feed-h));
+    bottom: 0;
+    border-top: 1px solid var(--c-line);
+    background: var(--c-bg-base);
+    /* ⚠️ 패드는 HUD 보다 **나중에** DOM 에 붙는다(FlightScreen 생성 순서).
+       불투명 배경이 그대로 계기를 덮어 데크가 텅 비어 보였다(실측) — 바닥으로 내린다. */
+    z-index: 1;
+  }
+  .hud-cell,
+  .hud-radio,
+  .hud-btn {
+    z-index: 2;
+  }
+  /* 두 손으로 세로로 들었을 때 엄지가 자연히 닿는 높이 */
+  .stick { bottom: calc(11vh + var(--sab)); }
 }
 
 /* ── 디브리핑 (T8c) — 정지 노이즈 화면 위 무전 텍스트 ─────

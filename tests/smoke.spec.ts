@@ -514,19 +514,113 @@ test('표적·위협 라벨이 서로 겹치지 않는다', async ({ page }) => 
  * iOS 에 아예 없고 안드로이드도 전체화면일 때만 받으므로, 세로로 들었을 때
  * **화면이 그냥 찌그러지지 않도록** 마지막 방어선이 있어야 한다.
  */
-test('세로로 들면 가로 안내가 뜨고, 가로에서는 사라진다', async ({ page }) => {
+/**
+ * 세로 플레이 — 예전에는 "가로로 돌리세요"로 막았다. 이제는 **플레이된다.**
+ *
+ * 계약 셋:
+ * ① 영상이 16:9 로 유지된다 (세로 화면에 늘려 채우면 FOV 118°가 왜곡된다)
+ * ② HUD 는 영상 박스 **안**에 있다 (OSD 는 영상 위에 있어야 OSD 다)
+ * ③ 조종 패드는 영상 **아래** 데크에 있다 (엄지가 영상을 가리지 않는다)
+ */
+test('세로로 들어도 플레이된다 — 영상 16:9 유지 + 조종 데크 분리', async ({ page }) => {
+  test.setTimeout(300_000);
   await enterFlight(page);
-
-  const notice = page.locator('#rotate-notice');
-  await expect(notice, '가로인데 안내가 떠 있다 — 화면을 가린다').toBeHidden();
-
   await page.setViewportSize({ width: 412, height: 915 });
-  await expect(notice, '세로인데 안내가 없다 — 찌그러진 화면을 그냥 보여준다').toBeVisible();
-  await expect(notice).toContainText(/가로|LANDSCAPE/);
-  await page.screenshot({ path: 'tests/__screenshots__/portrait-notice.png' });
+  await page.waitForFunction(() => window.__debug?.ready === true, null, { timeout: 60_000 });
+  // 레이아웃·리사이즈가 잡히도록 몇 프레임 굴린다
+  await page.evaluate(async () => {
+    const n = window.__debug.frame + 3;
+    while (window.__debug.frame < n) await new Promise((r) => requestAnimationFrame(r));
+  });
 
+  const box = await page.evaluate(() => {
+    const r = (sel: string) => document.querySelector(sel)!.getBoundingClientRect();
+    const view = r('#view');
+    const hud = r('#hud');
+    const pads = r('#pads');
+    return {
+      viewAspect: view.width / view.height,
+      viewBottom: view.bottom,
+      hudTop: hud.top,
+      hudBottom: hud.bottom,
+      padsTop: pads.top,
+      padsBottom: pads.bottom,
+      innerH: window.innerHeight,
+      canvasW: (document.querySelector('#view') as HTMLCanvasElement).width,
+      canvasH: (document.querySelector('#view') as HTMLCanvasElement).height,
+    };
+  });
+
+  // ① 영상 박스가 16:9 (±2%)
+  expect(Math.abs(box.viewAspect - 16 / 9), `영상이 16:9 가 아니다 (${box.viewAspect.toFixed(2)})`).toBeLessThan(0.36);
+  // 그리기 버퍼도 같은 비율이어야 늘어나지 않는다
+  expect(Math.abs(box.canvasW / box.canvasH - 16 / 9), '그리기 버퍼 비율이 박스와 다르다 — 화면이 늘어난다').toBeLessThan(0.36);
+  // ② HUD 가 영상 박스 안
+  expect(box.hudBottom, 'HUD 가 영상 아래로 삐져나왔다').toBeLessThanOrEqual(box.viewBottom + 1);
+  // ③ 패드 데크가 영상 아래에서 시작해 바닥까지
+  expect(box.padsTop, '조종 데크가 영상을 덮고 있다').toBeGreaterThanOrEqual(box.viewBottom - 1);
+  expect(box.padsBottom, '조종 데크가 화면 바닥까지 안 온다').toBeGreaterThan(box.innerH - 2);
+
+  /**
+   * ④ 계기가 데크 안에서 **실제로 보인다.**
+   * 데크 배경이 계기를 덮어 텅 비어 보이던 회귀가 있었다 — 눈으로만 보면 놓친다.
+   */
+  const gauge = await page.evaluate(() => {
+    const el = document.querySelector('.hud-mr') as HTMLElement;
+    const r = el.getBoundingClientRect();
+    return {
+      text: el.textContent ?? '',
+      top: r.top,
+      w: r.width,
+      h: r.height,
+      /**
+       * 데크 배경 위에 있는가. `elementFromPoint` 로는 못 잰다 —
+       * HUD 는 `pointer-events: none` 이라 히트 테스트에서 통째로 빠진다(그래서 빈 값이 나왔다).
+       * 겹침은 **쌓임 순서**로 판정한다.
+       */
+      cellZ: Number(getComputedStyle(el).zIndex) || 0,
+      deckZ: Number(getComputedStyle(document.querySelector('#pads')!).zIndex) || 0,
+      opacity: Number(getComputedStyle(el).opacity),
+      feedBottom: document.querySelector('#view')!.getBoundingClientRect().bottom,
+    };
+  });
+  expect(gauge.text, '고도 계기에 값이 없다').toMatch(/ALT/);
+  expect(gauge.w * gauge.h, '고도 계기가 크기 0 이다').toBeGreaterThan(0);
+  expect(gauge.opacity, '고도 계기가 투명하다').toBeGreaterThan(0.5);
+  expect(gauge.top, '계기가 아직 영상 위에 얹혀 있다').toBeGreaterThan(gauge.feedBottom - 1);
+  expect(
+    gauge.cellZ,
+    `계기가 데크 배경 아래에 깔렸다 (계기 z=${gauge.cellZ}, 데크 z=${gauge.deckZ})`,
+  ).toBeGreaterThan(gauge.deckZ);
+
+  await page.screenshot({ path: 'tests/__screenshots__/portrait-play.png' });
+
+  // 세로에서도 실제로 조종이 먹는다 — 스크립트가 아니라 화면의 패드를 만진다
+  const before = await page.evaluate(() => window.__debug.flight.telemetry().pos.z);
+  const stick = page.locator(".stick[data-side='right']");
+  const s = (await stick.boundingBox())!;
+  await page.mouse.move(s.x + s.width / 2, s.y + s.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(s.x + s.width / 2, s.y + s.height / 2 - 40, { steps: 4 });
+  await page.evaluate(async () => {
+    const n = window.__debug.frame + 20;
+    while (window.__debug.frame < n) await new Promise((r) => requestAnimationFrame(r));
+  });
+  await page.mouse.up();
+  const after = await page.evaluate(() => window.__debug.flight.telemetry().pos.z);
+  expect(Math.abs(after - before), '세로 데크의 스틱이 기체를 못 움직인다').toBeGreaterThan(1);
+
+  // 가로로 돌리면 영상이 화면 전체를 채운다
   await page.setViewportSize({ width: 915, height: 412 });
-  await expect(notice, '가로로 돌렸는데 안내가 안 사라진다').toBeHidden();
+  await page.evaluate(async () => {
+    const n = window.__debug.frame + 3;
+    while (window.__debug.frame < n) await new Promise((r) => requestAnimationFrame(r));
+  });
+  const full = await page.evaluate(() => {
+    const v = document.querySelector('#view')!.getBoundingClientRect();
+    return { h: v.height, innerH: window.innerHeight };
+  });
+  expect(full.h, '가로인데 영상이 화면을 안 채운다').toBeGreaterThan(full.innerH - 2);
 });
 
 /**
